@@ -1,0 +1,101 @@
+import os
+import numpy as np
+import pandas as pd
+
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+from functools import partial
+from multiprocessing import cpu_count
+
+from tqdm.contrib.concurrent import process_map
+
+from epioncho_ibm import Params, Simulation
+from epioncho_ibm.state.params import BlackflyParams, TreatmentParams
+from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
+
+def run_sim(i, start_time=1950, mda_start=2000, mda_stop=2020, simulation_stop=2050, abr=2297, verbose=True) -> Data:
+    params = Params(
+        delta_time_days=1,
+        year_length_days=366,
+        n_people=440,
+        blackfly=BlackflyParams(
+            delta_h_zero=0.186,
+            delta_h_inf=0.003,
+            c_h=0.005,
+            bite_rate_per_person_per_year=abr,
+            gonotrophic_cycle_length=0.0096,
+        ),
+        sequela_active=[
+            "HangingGroin",
+            "Atrophy",
+            "Blindness",
+            "APOD",
+            "CPOD",
+            "RSD",
+            "Depigmentation",
+            "SevereItching",
+        ],
+        treatment=TreatmentParams(
+            interval_years=1,
+            start_time=mda_start,
+            stop_time=mda_stop,
+        ),
+    )
+
+    simulation = Simulation(start_time=start_time, params=params, verbose=verbose)
+    run_data: Data = {}
+    for state in simulation.iter_run(
+        end_time=simulation_stop,
+        sampling_years=[i for i in range(mda_stop, simulation_stop)],
+    ):
+        add_state_to_run_data(
+            state,
+            run_data=run_data,
+            number=True,
+            n_treatments=False,
+            achieved_coverage=False,
+            with_age_groups=True,
+            prevalence=True,
+            mean_worm_burden=False,
+            intensity=True,
+        )
+    return run_data
+
+def calcProbEliminationIUScenario(data, measureYear=2050, context={}):
+    prev_vals = np.array([
+            [value for key, value in run.items() if ((key[0] == measureYear) & (key[3] == "prevalence"))]
+            for run in data])
+    
+    number_vals = np.array([
+            [value for key, value in run.items() if ((key[0] == measureYear) & (key[3] == "number"))]
+            for run in data])
+
+    total_infected = np.sum(np.nan_to_num(number_vals * prev_vals, nan=0.0), axis=0)
+    print("Total Inf")
+    print(total_infected)
+    
+    prob_elim = np.mean(total_infected == 0)
+    columns = ['iu', 'scenario', 'mda_stop_year', 'measure_year', 'prob_elim']
+    output_data = [context["iuName"], context["scenario"], context["mdaStopYear"], measureYear, prob_elim]
+
+    pd.DataFrame([output_data], columns=columns).to_csv("-".join(["prob_elim", context["iuName"], context["scenario"], str(context["mdaStopYear"])]) + ".csv")
+
+
+
+run_iters = 20
+
+if __name__ == "__main__":
+    cpus_to_use = cpu_count() - 4
+
+    # ~ 70% MFP
+    rumSim = partial(run_sim, start_time=1950, mda_start=2000, mda_stop=2026, simulation_stop=2051, abr=2297)
+    data: list[Data] = process_map(rumSim, range(run_iters), max_workers=cpus_to_use)
+    write_data_to_csv(data, "raw_data.csv")
+    calcProbEliminationIUScenario(data, context={
+        "iuName": "test",
+        "scenario": "scenario_1",
+        "mdaStopYear": 2026})
+    
