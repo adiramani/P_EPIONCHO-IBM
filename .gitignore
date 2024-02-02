@@ -5,3 +5,4 @@ __pycache__
 *.hdf5
 *.png
 *.sh
+test_outputs/

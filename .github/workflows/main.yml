@@ -43,3 +43,15 @@ jobs:
     - name: Run Test
       run: |
         poetry run python examples/test_new_changes.py
+    - name: Set up R
+      uses: r-lib/actions/setup-r@v1
+      with:
+        r-version: latest 
+    - name: Install dependencies
+      run: Rscript test_outputs/compare_model_to_r.R
+    - name: Upload image as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: model-comparison-image
+        path: test_outputs/comparison_plot.png
+        
