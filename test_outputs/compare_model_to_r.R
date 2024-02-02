@@ -8,12 +8,8 @@ configure_python_data <- function(filePath, isPNC=FALSE) {
     returnDf <- df %>% filter(measure == "prevalence") %>%
         mutate(
             mean_mf_prev = rowMeans(.[5:ncol(.)], na.rm=TRUE),
-        # ) %>% rowwise() %>%
-        # mutate(
-        #     lb_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][1],
-        #     ub_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][2]
         ) %>%
-        select(year_id, age_start, age_end, mean_mf_prev)#, lb_mf_prev, ub_mf_prev)
+        select(year_id, age_start, age_end, mean_mf_prev)
     if(isPNC) {
         returnDf2 <- df %>% filter(measure == "pnc") %>%
             mutate(
@@ -81,6 +77,14 @@ r_model_data_1 <- read.csv("test_outputs/r_model_output/summarized_model_result.
 print(head(r_model_data_1))
 
 mfp_plot <- ggplot() +
+    geom_vline(aes(xintercept=1988), color="gold", linetype="dashed") +
+    annotate("text", color="gold", label="52% IVM Treatment Starts", x=1988, y=0.1, hjust=1) +
+    geom_vline(aes(xintercept=1997), color="orange", linetype="dashed") +
+    annotate("text", color="orange",label="65% IVM Treatment Starts", x=1997, y=0.75, hjust=1) +
+    geom_vline(aes(xintercept=2000), color="maroon", linetype="dashed") +
+    annotate("text", color="maroon",label="Treatment Stops", x=2000, y=0.65, hjust=1) +
+    geom_vline(aes(xintercept=2026), color="darkred", linetype="dashed") +
+    annotate("text", color="darkred", label="65% MOX Treatment Starts", x=2026, y=0.7, hjust=1) +
     geom_line(aes(x=year_id, y=mean_mf_prev, color="R Model"), data=r_model_data_1) +
     geom_line(aes(x=year_id, y=mean_mf_prev, color="Original Python Model"), alpha=0.5, data=python_model_data_1) +
     geom_line(aes(x=year_id, y=mean_mf_prev, color="New Python Model"), alpha=0.5, data=python_model_data_2) +
@@ -91,6 +95,13 @@ mfp_plot <- ggplot() +
                         ),
                         labels = function(x) str_wrap(x, width=16)) +
     scale_y_continuous("MF Prevalence (%)", limits=c(0, 0.8), breaks=seq(0, 1, 0.1)) +
+    theme_bw() +
+    guides(color=guide_legend(
+        label.hjust=1
+    )) +
+    scale_x_continuous("Time (years)", limits=c(1970, 2030), breaks=seq(1900, 2040, 10))
+
+pnc_plot <- ggplot() +
     geom_vline(aes(xintercept=1988), color="gold", linetype="dashed") +
     annotate("text", color="gold", label="52% IVM Treatment Starts", x=1988, y=0.1, hjust=1) +
     geom_vline(aes(xintercept=1997), color="orange", linetype="dashed") +
@@ -99,13 +110,6 @@ mfp_plot <- ggplot() +
     annotate("text", color="maroon",label="Treatment Stops", x=2000, y=0.65, hjust=1) +
     geom_vline(aes(xintercept=2026), color="darkred", linetype="dashed") +
     annotate("text", color="darkred", label="65% MOX Treatment Starts", x=2026, y=0.7, hjust=1) +
-    theme_bw() +
-    guides(color=guide_legend(
-        label.hjust=1
-    )) +
-    scale_x_continuous("Time (years)", limits=c(1970, 2030), breaks=seq(1900, 2040, 10))
-
-pnc_plot <- ggplot() +
     geom_line(aes(x=year_id, y=mean_pnc_eligible, color="R Model"), data=r_model_data_1) +
     geom_line(aes(x=year_id, y=mean_pnc, color="Original Python Model"), alpha=0.5, data=python_model_data_1) +
     geom_line(aes(x=year_id, y=mean_pnc, color="New Python Model"), alpha=0.5, data=python_model_data_2) +
@@ -116,14 +120,6 @@ pnc_plot <- ggplot() +
                         ),
                         labels = function(x) str_wrap(x, width=16)) +
     scale_y_continuous("PNC (%)", limits=c(0, 0.8), breaks=seq(0, 1, 0.1)) +
-    geom_vline(aes(xintercept=1988), color="gold", linetype="dashed") +
-    annotate("text", color="gold", label="52% IVM Treatment Starts", x=1988, y=0.1, hjust=1) +
-    geom_vline(aes(xintercept=1997), color="orange", linetype="dashed") +
-    annotate("text", color="orange",label="65% IVM Treatment Starts", x=1997, y=0.75, hjust=1) +
-    geom_vline(aes(xintercept=2000), color="maroon", linetype="dashed") +
-    annotate("text", color="maroon",label="Treatment Stops", x=2000, y=0.65, hjust=1) +
-    geom_vline(aes(xintercept=2026), color="darkred", linetype="dashed") +
-    annotate("text", color="darkred", label="65% MOX Treatment Starts", x=2026, y=0.7, hjust=1) +
     guides(color=guide_legend(
         label.hjust=1
     )) +

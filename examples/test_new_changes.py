@@ -192,7 +192,7 @@ def wrapped_parameters(iu_name):
     # Run simulations and save output
     num_iter = 10
     max_workers = os.cpu_count() if num_iter > os.cpu_count() else num_iter
-    rumSim = partial(run_sim, verbose=False, iu_name=iu_name, sample=False)
+    rumSim = partial(run_sim, verbose=False, iu_name=iu_name, sample=True)
     data = process_map(rumSim, range(num_iter), max_workers=max_workers)
     write_data_to_csv(
         data,
