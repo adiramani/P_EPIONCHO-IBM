@@ -10,6 +10,7 @@ on:
     branches: [ "master", "testing-workflows" ]
 
 permissions:
+  actions: read
   contents: write
   pull-requests: write
   packages: read
@@ -67,25 +68,27 @@ jobs:
 
   comment-results:
     if: github.event_name == 'pull_request'
+    needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/github-script@v6
         with:
           script: |
-            artifact_list = github.rest.actions.listWorkflowRunArtifacts({
-              context.issue.number,
-              context.repo.owner,
-              context.runId,
+            const artifact_list = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.issue.number,
+              repo: context.repo.owner,
+              body: context.runId,
             });
-            image_artifact = artifact_list["artifacts"].find(artifact => artifact.name === "comparison_plot.png");
-            image_url = image_artifact["url"];
+            const image_artifact = artifact_list["artifacts"].find(artifact => artifact.name === "comparison_plot.png");
+            const image_url = image_artifact["url"];
 
-            comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')';
+            const comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')';
             
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: comment_body,
-            })
+            });
         
