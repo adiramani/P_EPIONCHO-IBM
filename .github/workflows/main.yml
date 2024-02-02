@@ -30,7 +30,7 @@ jobs:
         pip3 install flake8 poetry
     - name: Set up GitHub token
       run: echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
-    - name: Setup with Poetry
+    - name: Setup Env with Poetry
       run: |
         poetry lock
         poetry install
@@ -40,7 +40,7 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Run Test
+    - name: Run Model
       run: |
         poetry run python examples/test_new_changes.py
     - name: Set up R
@@ -48,7 +48,7 @@ jobs:
       with:
         r-version: latest 
         use-public-rspm: true
-    - name: Install dependencies
+    - name: Install R Dependencies
       uses: r-lib/actions/setup-r-dependencies@v2
       with:
         packages: |
@@ -56,6 +56,8 @@ jobs:
           any::dplyr
           any::patchwork
           any::stringr
+    - name: Run Visualization Code in R
+      run: Rscript test_outputs/compare_model_to_r.R
     - name: Upload image as artifact
       uses: actions/upload-artifact@v2
       with:
