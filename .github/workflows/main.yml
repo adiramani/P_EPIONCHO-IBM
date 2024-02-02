@@ -79,22 +79,22 @@ jobs:
               const artifact_list = await github.rest.actions.listWorkflowRunArtifacts({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                run_id: context.runId,
-              });
-              console.log(artifact_list);
-              const image_artifact = artifact_list["artifacts"].find(artifact => artifact.name === "comparison_plot.png");
-              console.log(image_artifact);
-              const image_url = image_artifact["url"];
-              console.log(image_url);
+                run_id: context.runId
+              })
+              console.log(artifact_list)
+              const image_artifact = artifact_list.artifacts.find(artifact => artifact.name === "comparison_plot.png")
+              console.log(image_artifact)
+              const image_url = image_artifact.url
+              console.log(image_url)
 
-              const comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')';
+              const comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')'
               
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: comment_body,
-              });
+                body: comment_body
+              })
             }
-            runAsync();
+            runAsync()
         
