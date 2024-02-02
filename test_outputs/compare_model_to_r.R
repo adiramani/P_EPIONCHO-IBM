@@ -12,7 +12,7 @@ configure_python_data <- function(filePath, isPNC=FALSE) {
         # mutate(
         #     lb_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][1],
         #     ub_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][2]
-        # ) %>%
+        ) %>%
         select(year_id, age_start, age_end, mean_mf_prev)#, lb_mf_prev, ub_mf_prev)
     if(isPNC) {
         returnDf2 <- df %>% filter(measure == "pnc") %>%
