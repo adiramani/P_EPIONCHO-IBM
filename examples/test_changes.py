@@ -6,6 +6,23 @@ from epioncho_ibm.endgame_simulation import EndgameSimulation
 from epioncho_ibm.state.params import EpionchoEndgameModel
 from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
 
+# Steps to test issue
+# Make sure this line https://github.com/adiramani/P_EPIONCHO-IBM/blob/testing-changes/pyproject.toml#L15C1-L15C86
+# is endgame-simulations = {git = "git@github.com:dreamingspires/endgame-simulations.git"}
+# poetry lock
+# poetry install
+# poetry run examples/test_changes.py
+# You can see that in 2026, no MDA is run even though it should be, and the step taken is bigger than the delta time
+
+# Steps to test fix
+# Make sure this line https://github.com/adiramani/P_EPIONCHO-IBM/blob/testing-changes/pyproject.toml#L15C1-L15C86
+# is endgame-simulations = {git = "git@github.com:adiramani/endgame-simulations.git"}
+# poetry lock
+# poetry install
+# poetry run examples/test_changes.py
+# You can see that now in 2026, MDA is run in the first time step, and the
+# step taken is the same as the delta time
+
 
 # Function to add model parameters (seed, exp, abr) and MDA history to endgame object
 def get_endgame(iter):
