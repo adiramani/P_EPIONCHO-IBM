@@ -51,7 +51,7 @@ jobs:
     - name: Install dependencies
       uses: r-lib/actions/setup-r-dependencies@v2
       with:
-        extra-packages: |
+        packages: |
           any::ggplot2
           any::dplyr
           any::patchwork
