@@ -8,12 +8,12 @@ configure_python_data <- function(filePath, isPNC=FALSE) {
     returnDf <- df %>% filter(measure == "prevalence") %>%
         mutate(
             mean_mf_prev = rowMeans(.[5:ncol(.)], na.rm=TRUE),
-        ) %>% rowwise() %>%
-        mutate(
-            lb_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][1],
-            ub_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][2]
-        ) %>%
-        select(year_id, age_start, age_end, mean_mf_prev, lb_mf_prev, ub_mf_prev)
+        # ) %>% rowwise() %>%
+        # mutate(
+        #     lb_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][1],
+        #     ub_mf_prev = t.test(c_across(5:ncol(.)))["conf.int"][[1]][2]
+        # ) %>%
+        select(year_id, age_start, age_end, mean_mf_prev)#, lb_mf_prev, ub_mf_prev)
     if(isPNC) {
         returnDf2 <- df %>% filter(measure == "pnc") %>%
             mutate(
@@ -71,12 +71,14 @@ configure_r_data <- function(folderPath, timeStep=1/366, initialYear = 1894, isP
 }
 
 python_model_data_1 <- configure_python_data("test_outputs/python_model_output/testing_CIV0162715440-original_model.csv", isPNC=TRUE)
+print(head(python_model_data_1))
 python_model_data_2 <- configure_python_data("test_outputs/python_model_output/testing_CIV0162715440-new_run.csv", isPNC=TRUE)
-
+print(head(python_model_data_2))
 
 
 # timestep = 1/2 a day
 r_model_data_1 <- read.csv("test_outputs/r_model_output/summarized_model_result.csv")
+print(head(r_model_data_1))
 
 mfp_plot <- ggplot() +
     geom_line(aes(x=year_id, y=mean_mf_prev, color="R Model"), data=r_model_data_1) +
