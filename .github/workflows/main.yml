@@ -72,23 +72,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/github-script@v6
+      - uses: actions/github-script@v7
         with:
           script: |
-            const artifact_list = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.issue.number,
-              repo: context.repo.owner,
-              body: context.runId,
-            });
-            const image_artifact = artifact_list["artifacts"].find(artifact => artifact.name === "comparison_plot.png");
-            const image_url = image_artifact["url"];
+            async function runAsync() {
+              const artifact_list = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: context.runId,
+              });
+              console.log(artifact_list);
+              const image_artifact = artifact_list["artifacts"].find(artifact => artifact.name === "comparison_plot.png");
+              console.log(image_artifact);
+              const image_url = image_artifact["url"];
+              console.log(image_url);
 
-            const comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')';
-            
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment_body,
-            });
+              const comment_body = 'Automated Test has been run. Here is the plot comparing the new code's output ![comparison_plot](' + image_url + ')';
+              
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment_body,
+              });
+            }
+            runAsync();
         
