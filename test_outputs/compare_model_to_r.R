@@ -1,12 +1,3 @@
-install_if_not_installed <- function(packages) {
-    for (package in packages) {
-        if (!requireNamespace(package, quietly = TRUE)) {
-            install.packages(package, dependencies = TRUE)
-        }
-    }
-}
-
-install_if_not_installed(c("ggplot2", "dplyr", "patchwork", "stringr"))
 library(ggplot2)
 library(dplyr)
 library(patchwork)
@@ -81,13 +72,13 @@ configure_r_data <- function(folderPath, timeStep=1/366, initialYear = 1894, isP
     return(df)
 }
 
-python_model_data_1 <- configure_python_data("python_model_output/testing_CIV0162715440-original_model.csv", isPNC=TRUE)
-python_model_data_2 <- configure_python_data("python_model_output/testing_CIV0162715440-new_run.csv", isPNC=TRUE)
+python_model_data_1 <- configure_python_data("test_outputs/python_model_output/testing_CIV0162715440-original_model.csv", isPNC=TRUE)
+python_model_data_2 <- configure_python_data("test_outputs/python_model_output/testing_CIV0162715440-new_run.csv", isPNC=TRUE)
 
 
 
 # timestep = 1/2 a day
-r_model_data_1 <- read.csv("r_model_output/summarized_model_result.csv")
+r_model_data_1 <- read.csv("test_outputs/r_model_output/summarized_model_result.csv")
 
 mfp_plot <- ggplot() +
     geom_line(aes(x=year_id, y=mean_mf_prev, color="R Model"), data=r_model_data_1) +
@@ -138,5 +129,5 @@ pnc_plot <- ggplot() +
     )) +
     scale_x_continuous("Time (years)", limits=c(1970, 2030), breaks=seq(1900, 2040, 10))
 
-ggsave("comparison_plot.png", (mfp_plot / pnc_plot), 
+ggsave("test_outputs/comparison_plot.png", (mfp_plot / pnc_plot), 
     dpi=800, width=8000, height=4000, units="px")
