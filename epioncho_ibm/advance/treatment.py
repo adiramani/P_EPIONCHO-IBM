@@ -38,6 +38,18 @@ def _is_during_treatment(
             )
             and current_time <= treatment.stop_time
         )
+        if (current_time > 2024) and (current_time % 1 < (1 / 366)):
+            if current_time == 2024 + delta_time:
+                print(
+                    "Treatment Checks: Treatment should occur on the first timestep of each year\n"
+                )
+            if current_time < 2026:
+                print("IVM Treatment with old delta time")
+            else:
+                print("MOX Treatment with new delta time")
+            print("Current Time: ", str(current_time))
+            print("Delta Time: ", str(delta_time))
+            print("Will treatment happen: ", str(treatment_occurred) + "\n")
     else:
         treatment_occurred = False
     return treatment_started, treatment_occurred
