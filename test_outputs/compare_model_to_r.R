@@ -3,8 +3,6 @@ library(dplyr)
 library(patchwork)
 library(stringr)
 
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-
 configure_python_data <- function(filePath, isPNC=FALSE) {
     df <- read.csv(filePath)
     returnDf <- df %>% filter(measure == "prevalence") %>%
