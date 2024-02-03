@@ -77,11 +77,6 @@ jobs:
         with:
           script: |
             async function runAsync() {
-              const artifact_list = await github.rest.actions.listWorkflowRunArtifacts({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                run_id: context.runId
-              })
               const artifactClient = require('@actions/artifact')
               const artifact_list = await artifactClient.listArtifacts()
               console.log(artifact_list)
