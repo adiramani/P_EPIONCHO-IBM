@@ -82,6 +82,8 @@ jobs:
                 repo: context.repo.repo,
                 run_id: context.runId
               })
+              const artifactClient = require('@actions/artifact')
+              const artifact_list = await artifactClient.listArtifacts()
               console.log(artifact_list)
               const image_artifact = artifact_list.data.artifacts.find(artifact => artifact.name === "comparison_plot.png")
               console.log(image_artifact)
