@@ -71,6 +71,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v3
       - name: Get Image URL and create comment 
         uses: actions/github-script@v7
         with:
@@ -82,7 +83,7 @@ jobs:
                 run_id: context.runId
               })
               console.log(artifact_list)
-              const image_artifact = artifact_list.artifacts.find(artifact => artifact.name === "comparison_plot.png")
+              const image_artifact = artifact_list.data.artifacts.find(artifact => artifact.name === "comparison_plot.png")
               console.log(image_artifact)
               const image_url = image_artifact.url
               console.log(image_url)
