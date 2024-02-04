@@ -1,5 +1,4 @@
 import os
-import random
 from functools import partial
 
 import numpy as np
@@ -20,15 +19,16 @@ from examples.post_processing_function import post_processing_calculation
 def get_endgame(iter, iu_name="GHA0216121382", sample=True):
     treatment_program = []
     changes = []
-    inputData = pd.read_csv("test_outputs/inputParams/InputPars_" + iu_name + ".csv")
-    index = random.randint(1, inputData.shape[0])
-    seed = iter + iter * 3758  # inputData.loc[index][0]
-    gamma_distribution = 0.31  # inputData.loc[index][1]  # 0.3
-    abr = 600  # 1641  # inputData.loc[index][2]  # 2297
-    if sample:
-        seed = inputData.loc[index][0]
-        gamma_distribution = inputData.loc[index][1]  # 0.3
-        abr = inputData.loc[index][2]
+    seed = iter + iter * 3758
+    gamma_distribution = 0.31
+    abr = 1641
+    # TODO: Variable sampling during test
+    # inputData = pd.read_csv("test_outputs/inputParams/InputPars_" + iu_name + ".csv")
+    # index = random.randint(1, inputData.shape[0])
+    # if sample:
+    #     seed = inputData.loc[index][0]
+    #     gamma_distribution = inputData.loc[index][1]  # 0.3
+    #     abr = inputData.loc[index][2]
     if iu_name == "GHA0216121382":
         treatment_program.append(
             {
@@ -151,17 +151,6 @@ def get_endgame(iter, iu_name="GHA0216121382", sample=True):
                 "delta_time_days": 1,
                 "blackfly": {"bite_rate_per_person_per_year": abr},
             },
-            # treatment doesn't seem to be occuring in 2026 (i.e the year in which delta_time_days is changed)
-            # the problem comes with an edge case that breaks the logic in treatment.py - https://github.com/dreamingspires/EPIONCHO-IBM/blob/master/epioncho_ibm/advance/treatment.py#L36
-            # basically we take an additional time step before we actually change the delta time values
-            # this means we increment by 1 day, and then change the delta time days to 0.5 within that iteration
-            # The logic linked is trying to determine whether treatment would have occured on that time step.
-            # This happens whenever the current time is before the treatment stop time AND
-            # when we are at the first iteration of a new round of treatment
-            # this second part is determined by a) the current time is at or past one of the treatment times AND
-            # b) it is only past that treatment time by at most delta_time (delta_time_days / year_length_days)
-            # The bug here is that we have taken a 1 day step, but then change delta_time_days to 0.5
-            # this that the logic will return false when we should be applying the first round of treatment
             "changes": changes,
         },
         "programs": treatment_program,
@@ -201,37 +190,18 @@ def run_sim(i, iu_name, verbose=False, sample=True):
 # Wrapper
 def wrapped_parameters(iu_name):
     # Run simulations and save output
-    num_iter = 10
-    max_workers = os.cpu_count() - 4 if num_iter > os.cpu_count() - 4 else num_iter
-    # rumSim = partial(run_sim, verbose=False, iu_name=iu_name, sample=False)
-    # data = process_map(rumSim, range(num_iter), max_workers=max_workers)
-    # write_data_to_csv(
-    #     data,
-    #     "test_outputs/python_model_output/testing_" + iu_name + "-age_grouped_raw_data_set_abr_366days_reset_zeros_pnc_updated_dd_daily_sampling.csv",
-    # )
-    rumSim = partial(run_sim, verbose=False, iu_name=iu_name, sample=False)
+    num_iter = 2
+    max_workers = os.cpu_count() if num_iter > os.cpu_count() else num_iter
+    rumSim = partial(run_sim, verbose=False, iu_name=iu_name, sample=True)
     data = process_map(rumSim, range(num_iter), max_workers=max_workers)
     write_data_to_csv(
         data,
-        "test_outputs/python_model_output/testing_"
-        + iu_name
-        + "-age_grouped_raw_data_variable_abr_366days_reset_zeros_pnc_updated_dd_daily_sampling.csv",
-    )
-    post_processing_calculation(
-        data,
-        iuName=iu,
-        scenario="1a",
-        csv_file="test_outputs/python_model_output/testing_"
-        + iu_name
-        + "-processed_data.csv",
-        mda_start_year=2026,
-        mda_stop_year=2041,
-        mda_interval=1,
+        "test_outputs/python_model_output/testing_" + iu_name + "-new_run.csv",
     )
 
 
 if __name__ == "__main__":
     # Run example
-    iu = "GHA0216121382"
-    # iu = "CIV0162715440"
+    # iu = "GHA0216121382"
+    iu = "CIV0162715440"
     wrapped_parameters(iu)
