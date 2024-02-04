@@ -80,11 +80,19 @@ jobs:
           script: |
             async function runAsync() {
               const artifactId = process.env.ARTIFACTID
-              const artifact_url = `https://api.github.com/repos/${context.repo.owner}/${context.repo.repo}/actions/artifacts/${artifactId}/zip`
-
-              const comment_body = ':white_check_mark: Automated Test has been run.\n' +
-              `Access the plot comparing the new code\'s output [here](${artifact_url})`
+              const artifact_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}/artifacts/${artifactId}`
+              const workflow_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              const test_file = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/master/examples/test_new_changes.py`
               
+              const comment_body = ':white_check_mark: Automated Test has been run successfully.\n' +
+              '**Please look at the Comparison Plot and verify that your changes are valid.**\n' +
+              'Access the workflow information:\n' +
+              '| Type | Link |\n' +
+              '| --- | --- |\n' +
+              `| Workflow | ${workflow_url} |\n`+
+              `| Comparison Plot | ${artifact_url} |` +
+              `To run this test locally, run the code in the [examples/test_new_changes.py](${test_file}) file.`
+
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
@@ -104,9 +112,11 @@ jobs:
         with:
           script: |
             async function runAsync() {
-              const comment_body = ':rotating_light: Automated Test has been run, resulting in a failure.\n' +
-              `Please see the [workflow](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}) for more details.`
-              
+              const github_url = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`
+              const test_file = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/master/examples/test_new_changes.py`
+              const comment_body = ':rotating_light: Automated Test failed.\n' +
+              `Please see the [workflow](${github_url}) for more details.` +
+              `To run this test locally, run the code in the [examples/test_new_changes.py](${test_file}) file.`
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
@@ -115,4 +125,3 @@ jobs:
               })
             }
             await runAsync()
-        
