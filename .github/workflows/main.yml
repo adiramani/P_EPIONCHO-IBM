@@ -5,10 +5,10 @@ name: Testing Simulations
 
 on:
   push:
-    branches: [ "master", "testing-workflows" ]
+    branches: [ "master", "local-work", "testing-workflows" ]
   pull_request:
     types: ready_for_review
-    branches: [ "master", "testing-workflows" ]
+    branches: [ "master", "local-work", "testing-workflows" ]
 
 permissions:
   actions: read
