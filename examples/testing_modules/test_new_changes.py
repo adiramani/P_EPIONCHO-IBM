@@ -80,7 +80,7 @@ def run_sim(
 # Wrapper
 def wrapped_parameters(iu_name):
     # Run simulations and save output
-    end_year = 2041
+    end_year = 1950
     num_iter = 1
     max_workers = os.cpu_count() if num_iter > os.cpu_count() else num_iter
     run_simulations(
