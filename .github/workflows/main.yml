@@ -14,7 +14,7 @@ on:
 permissions:
   actions: read
   contents: read
-  pull-requests: write
+  pull-requests: read
   packages: read
 
 jobs:
@@ -63,6 +63,17 @@ jobs:
           any::stringr
     - name: Run Visualization Code in R
       run: Rscript test_outputs/compare_model_to_r.R
+    - name: Save PR number
+      env:
+        PR_NUMBER: ${{ github.event.number }}
+      run: |
+        mkdir -p ./pr
+        echo $PR_NUMBER > ./pr/pr_number
+    - name: Upload PR number as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pr_number
+        path: pr/
     - name: Upload image as artifact
       uses: actions/upload-artifact@v4
       id: artifact-upload-step
@@ -130,13 +141,14 @@ jobs:
               `| Quadnnual MOX Sequelae Plots | ${artifact_url4} |\n` +
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
 
+              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment.zip`, Buffer.from(comment_body));
               // Creating comment
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment_body
-              })
+              // await github.rest.issues.createComment({
+              //  issue_number: context.issue.number,
+              //  owner: context.repo.owner,
+              //  repo: context.repo.repo,
+              //  body: comment_body
+              // })
             }
 
             // Using a separate function to run asyncronous code within a github action.
@@ -161,14 +173,15 @@ jobs:
               const comment_body = ':rotating_light: Automated Test failed.\n' +
               `Please see the [workflow](${github_url}) for more details.` +
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
+              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment.zip`, Buffer.from(comment_body));
               
               // Adding comment to PR
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: comment_body
-              })
+              // await github.rest.issues.createComment({
+              //   issue_number: context.issue.number,
+              //   owner: context.repo.owner,
+              //   repo: context.repo.repo,
+              //   body: comment_body
+              // })
             }
 
             // Using a separate function to run asyncronous code within a github action.
