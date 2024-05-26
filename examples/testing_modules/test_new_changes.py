@@ -58,16 +58,16 @@ def run_sim(
         add_state_to_run_data(
             state,
             run_data=run_data_age,
-            number=True,
-            n_treatments=True,
-            achieved_coverage=True,
+            number=False,
+            n_treatments=False,
+            achieved_coverage=False,
             with_age_groups=True,
             prevalence=True,
-            mean_worm_burden=True,
-            prevalence_OAE=True,
-            intensity=True,
-            with_sequela=True,
-            with_pnc=True,
+            mean_worm_burden=False,
+            prevalence_OAE=False,
+            intensity=False,
+            with_sequela=False,
+            with_pnc=False,
         )
     # testing saving to hdf5 for first 2 files
     if i <= 2:

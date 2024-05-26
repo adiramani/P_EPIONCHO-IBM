@@ -140,6 +140,7 @@ jobs:
               `| Quadnnual MOX Sequelae Plots | ${artifact_url4} |\n` +
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
 
+              let fs = require('fs');
               fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment.zip`, Buffer.from(comment_body));
               // Creating comment
               // await github.rest.issues.createComment({
@@ -172,6 +173,8 @@ jobs:
               const comment_body = ':rotating_light: Automated Test failed.\n' +
               `Please see the [workflow](${github_url}) for more details.` +
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
+              
+              let fs = require('fs');
               fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment.zip`, Buffer.from(comment_body));
               
               // Adding comment to PR
