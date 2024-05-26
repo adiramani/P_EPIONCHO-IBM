@@ -141,7 +141,7 @@ jobs:
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
 
               let fs = require('fs');
-              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment.zip`, Buffer.from(comment_body));
+              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment`, Buffer.from(comment_body));
               // Creating comment
               // await github.rest.issues.createComment({
               //  issue_number: context.issue.number,
@@ -153,6 +153,11 @@ jobs:
 
             // Using a separate function to run asyncronous code within a github action.
             await runAsync()
+            - name: Upload PR number as an artifact
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr_comment
+          path: ./
   comment-failure:
     runs-on: ubuntu-latest
     if: failure() && github.event_name == 'pull_request'
