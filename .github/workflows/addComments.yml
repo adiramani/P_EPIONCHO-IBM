@@ -47,7 +47,7 @@ jobs:
                         const issueNumberArtifact = await github.rest.actions.downloadArtifact({
                             owner: context.repo.owner,
                             repo: context.repo.repo,
-                            artifact_id: issueNumberArtifact.id,
+                            artifact_id: issueNumberArtifactObject.id,
                             archive_format: 'zip',
                         });
 
