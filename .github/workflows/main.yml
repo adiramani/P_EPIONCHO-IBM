@@ -141,7 +141,7 @@ jobs:
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
 
               let fs = require('fs');
-              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment`, Buffer.from(comment_body));
+              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr/pr_comment`, Buffer.from(comment_body));
               // Creating comment
               // await github.rest.issues.createComment({
               //  issue_number: context.issue.number,
@@ -157,7 +157,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pr_comment
-          path: ./pr_comment
+          path: pr/pr_comment
   comment-failure:
     runs-on: ubuntu-latest
     if: failure() && github.event_name == 'pull_request'
@@ -180,7 +180,7 @@ jobs:
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
               
               let fs = require('fs');
-              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr_comment`, Buffer.from(comment_body));
+              fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr/pr_comment`, Buffer.from(comment_body));
               
               // Adding comment to PR
               // await github.rest.issues.createComment({
@@ -196,5 +196,5 @@ jobs:
       - name: Upload comment as an artifact
         uses: actions/upload-artifact@v4
         with:
-          path: ./pr_comment
           name: pr_comment
+          path: pr/pr_comment
