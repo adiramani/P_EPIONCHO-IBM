@@ -44,6 +44,11 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    - name: Run Tests
+      run: |
+        cd tests/
+        pytest
+        cd ../
     - name: Run Base Model
       run: |
         poetry run python examples/testing_modules/test_new_changes.py
@@ -137,19 +142,12 @@ jobs:
               `| Comparison Plot | ${artifact_url} |\n` +
               `| Annual MOX Sequelae Plots | ${artifact_url2} |\n` +
               `| Biannual MOX Sequelae Plots | ${artifact_url3} |\n` +
-              `| Quadnnual MOX Sequelae Plots | ${artifact_url4} |\n` +
+              `| Quadnnual MOX Sequelae Plots | ${artifact_url4} |\n\n` +
               `To run this test locally, run the code in the [examples/testing_modules/test_new_changes.py](${test_file}) file.`
 
               let fs = require('fs');
               fs.mkdirSync(`${process.env.GITHUB_WORKSPACE}/pr/`)
               fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr/pr_comment`, Buffer.from(comment_body));
-              // Creating comment
-              // await github.rest.issues.createComment({
-              //  issue_number: context.issue.number,
-              //  owner: context.repo.owner,
-              //  repo: context.repo.repo,
-              //  body: comment_body
-              // })
             }
 
             // Using a separate function to run asyncronous code within a github action.
@@ -183,14 +181,6 @@ jobs:
               let fs = require('fs');
               fs.mkdirSync(`${process.env.GITHUB_WORKSPACE}/pr/`)
               fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/pr/pr_comment`, Buffer.from(comment_body));
-              
-              // Adding comment to PR
-              // await github.rest.issues.createComment({
-              //   issue_number: context.issue.number,
-              //   owner: context.repo.owner,
-              //   repo: context.repo.repo,
-              //   body: comment_body
-              // })
             }
 
             // Using a separate function to run asyncronous code within a github action.
