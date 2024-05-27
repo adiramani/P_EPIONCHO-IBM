@@ -47,7 +47,7 @@ jobs:
     - name: Run Tests
       run: |
         cd tests/
-        pytest
+        poetry run pytest
         cd ../
     - name: Run Base Model
       run: |
