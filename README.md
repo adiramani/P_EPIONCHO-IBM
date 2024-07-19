@@ -89,7 +89,7 @@ These tests are found in `examples/testing_modules/`. They are meant to test the
 # Profiling
 
 Profiling is a way of finding out how the execution time of all of the functions in a program. You can run the following to see an execution graph of a given program:
-
+ 
 ```bash
 poetry run python -m cProfile -o /tmp/program.prof examples/test_new.py; poetry run snakeviz /tmp/program.prof -s # opens a browser
 ```
