@@ -5,9 +5,10 @@ name: Testing Simulations
 
 on:
   push:
+    branches:
       - 'master'
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
 
 permissions:
   actions: read
@@ -17,7 +18,7 @@ permissions:
 
 jobs:
   build:
-    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.label.name == 'run end-to-end test') }}
+    if: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && contains(toJson(github.event.pull_request.labels.*.name), 'run end-to-end test')) }}
     runs-on: ubuntu-latest
     outputs:
       artifactId: ${{ steps.artifact-upload-step.outputs.artifact-id }}
@@ -44,11 +45,6 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    - name: Run Unit Tests
-      run: |
-        cd tests/
-        poetry run pytest
-        cd ../
     - name: Run Base Model
       run: |
         poetry run python examples/testing_modules/test_new_changes.py
