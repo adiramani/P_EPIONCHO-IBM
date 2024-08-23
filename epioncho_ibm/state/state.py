@@ -199,6 +199,7 @@ class State(HDF5Dataclass, BaseState[Params]):
                 params.treatment.correlation,
                 params.treatment.total_population_coverage,
                 self.numpy_bit_generator,
+                params.treatment.never_compliant_pct
             )
 
         # backwards compatibility check, where n_treatments used to be an array, instead of a dict

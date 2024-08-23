@@ -24,6 +24,7 @@ class SpecificTreatmentParams(BaseModel):
     )
     min_age_of_treatment: int = 5
     correlation: float = 0.5
+    never_compliant_pct: float = 0
     total_population_coverage: float = 0.65  # The probability that a 'treatable' person is actually treated in an iteration - "treat.prob"
 
 

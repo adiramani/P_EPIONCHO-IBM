@@ -306,6 +306,7 @@ class People(HDF5Dataclass):
                 cov=params.treatment.total_population_coverage,
                 size=n_people,
                 random_generator=people_generator,
+                never_compliant_pct=params.treatment.never_compliant_pct,
             )
         last_treatment = np.empty(n_people)
         last_treatment[:] = np.nan
@@ -378,14 +379,21 @@ class People(HDF5Dataclass):
         cov: float,
         size: int,
         random_generator: Generator,
+        never_compliant_pct: float = 0
     ):
-        return random_generator.beta(
+        compliance_arr = np.random.choice([-1.0, 0.0], size=size, p=[never_compliant_pct, 1-never_compliant_pct])
+        possibly_compliant_mask = compliance_arr == 0
+        compliance_arr[possibly_compliant_mask] = random_generator.beta(
             a=cov * (1 - corr) / corr,
             b=(1 - cov) * (1 - corr) / corr,
-            size=size,
+            size=np.sum(possibly_compliant_mask),
         )
+        if never_compliant_pct > 0:
+            print("Corr: " + str(corr) + " Cov: " + str(cov))
+            print(compliance_arr)
+        return compliance_arr
 
-    def update_treatment_prob(self, corr: float, cov: float, numpy_bit_gen: Generator):
+    def update_treatment_prob(self, corr: float, cov: float, numpy_bit_gen: Generator, never_compliant_pct: float = 0):
         """Draw new values for treatment probabilities.
 
         New treatment probability values are assigned to individuals
@@ -402,10 +410,21 @@ class People(HDF5Dataclass):
         Returns:
             Array.Person.Float
         """
-        new_probs = People.draw_compliance_values(
-            corr, cov, size=len(self.ages), random_generator=numpy_bit_gen
-        )
-        self.compliance[np.argsort(self.compliance)] = np.sort(new_probs)
+        possibly_compliant = self.compliance[self.compliance >= 0]
+        if len(possibly_compliant) == len(self.compliance):
+            new_probs = People.draw_compliance_values(
+                corr, cov, size=len(possibly_compliant), 
+                random_generator=numpy_bit_gen,
+                never_compliant_pct=never_compliant_pct
+            )
+        else:
+            new_probs = People.draw_compliance_values(
+                corr, cov, size=len(possibly_compliant), 
+                random_generator=numpy_bit_gen,
+                never_compliant_pct=0
+            )
+        possibly_compliant[np.argsort(possibly_compliant)] = np.sort(new_probs)
+        self.compliance[self.compliance >= 0] = possibly_compliant
 
     def process_deaths(
         self,
@@ -445,10 +464,11 @@ class People(HDF5Dataclass):
 
         self.delay_arrays.process_deaths(people_to_die, self.individual_exposure)
         if treatment:
-            self.compliance[people_to_die] = People.draw_compliance_values(
+            compliance_death_mask = (people_to_die) & (self.compliance >= 0)
+            self.compliance[compliance_death_mask] = People.draw_compliance_values(
                 treatment.correlation,
                 treatment.total_population_coverage,
-                size=total_people_to_die,
+                size=np.sum(compliance_death_mask),
                 random_generator=numpy_bit_gen,
             )
 
