@@ -2,6 +2,7 @@ import os
 from functools import partial
 
 import h5py
+import numpy as np
 from tqdm.contrib.concurrent import process_map
 
 from epioncho_ibm.endgame_simulation import EndgameSimulation
@@ -10,11 +11,14 @@ from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
 
 
 # You can edit the inputs to this function to set more parameters dynamically
-def get_parameters(iter, abr=1641, kE=0.3):
+def get_parameters(iter, abr=1641, kE=0.3, coverages=[]):
     # all treatment (MDA) that you want to apply will be stored as a list of dictionaries
     # Each dictionary will describe the MDA being applied
     # If you want to apply vector control, it is considered a model change (explained below)
     treatment_program = []
+
+    for coverage in coverages:
+        treatment_program.append(coverage)
 
     # changes to the model parameters will also be stored as a list of dictionaries
     changes = []
@@ -68,8 +72,9 @@ def run_simulations(
     kE=0.3,
     start_time=1900,
     end_time=2005,
+    coverages=[]
 ):
-    endgame_structure = get_parameters(i, abr=abr, kE=kE)
+    endgame_structure = get_parameters(i, abr=abr, kE=kE, coverages=coverages)
 
     # Read in endgame objects and set up simulation
     endgame = EpionchoEndgameModel.parse_obj(endgame_structure)
@@ -165,27 +170,83 @@ def run_simulations(
 
 # this is the function that python will start execution with when run
 if __name__ == "__main__":
-    abr_vals = [187, 240, 285, 615, 1082, 1450, 2200, 7000, 20000, 60000]
-
-    mfp_abr_map = {
-        187: "10pct",
-        240: "23pct",
-        285: "30pct",
-        615: "50-49pct",
-        1082: "60pct",
-        1450: "64pct",
-        2200: "70pct",
-        7000: "80pct",
-        20000: "85pct",
-        60000: "90pct"
-    }
+    mda_values = [
+        [68, 79, 78, 75, 78] + [75 for i in range(20)],
+        [73, 73, 76, 78, 77] + [75 for i in range(20)],
+        [77, 77, 79, 80, 79] + [78 for i in range(20)],
+        [76, 56, 23, 23, 48, 65] + [48 for i in range(19)],
+        [37, 39, 26, 52, 62, 66] + [48 for i in range(19)],
+        [77, 64, 60, 42, 67] + [62 for i in range(20)],
+        [80, 82, 84, 85, 81] + [82 for i in range(20)]
+    ]
+    
 
     max_workers = 40
     index = int(os.environ['PBS_ARRAY_INDEX']) - 1
-    abr_val = abr_vals[index]
+    mda_index = index
+    coverage_values = []
+    mda_vals_to_use = mda_values[mda_index]
+    mda_start_year = 2025 - len(mda_vals_to_use)
+    never_ever_treated_values = {
+        0: 0.17,
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0.06,
+    }
+    rho_values = {
+        0: 0.9,
+        1: 0.8,
+        2: 0.9,
+        3: 0.355,
+        4: 0.24,
+        5: 0.1,
+        6: 0.9987,
+    }
+    if not(mda_index in rho_values):
+        exit()
+    for mda_val in mda_vals_to_use:
+        coverage_values.append({
+            "first_year": mda_start_year,
+            "last_year": mda_start_year,
+            "interventions": {
+                "treatment_interval": 1,
+                "total_population_coverage": mda_val / 100,
+                "correlation": rho_values[mda_index],
+                "never_compliant_pct": never_ever_treated_values[mda_index],
+            },
+        })
+        mda_start_year += 1
+    
+    print("MDA Index")
+    print(mda_index)
+    print("Rho")
+    print(rho_values[mda_index])
+
+    abr_vals = {
+        0: 320,
+        1: 615,
+        2: 1082,
+        3: 1300,
+        4: 1110,
+        5: 3250,
+        6: 320
+    }
+    abr_val = abr_vals[mda_index]
     # How many times we want to run the model for a given set of parameters
     # Typically this value is 200
     num_iters = 1000
+    mda_to_site = {
+        0: "Bushenyi",
+        1: "Cross - River",
+        2: "Kogi",
+        3: "Kumba",
+        4: "Ngambe",
+        5: "Raja",
+        6: "Taraba"
+    }
 
     # To use parallel processing
     # We need to make a "partial" of the function that we want to run in parallel
@@ -205,7 +266,8 @@ if __name__ == "__main__":
         # The start time of the model
         start_time=1900,
         # The end time of the model
-        end_time=2001,
+        end_time=2026,
+        coverages=coverage_values
     )
 
     # Now we use process_map to call the function we defined above
@@ -225,17 +287,13 @@ if __name__ == "__main__":
     # We are then going to save this data to a csv file
     write_data_to_csv(
         data,
-        "test_outputs/python_model_output/template_simulation_output_" + str(abr_val) + ".csv",
+        "test_outputs/python_model_output/morbidity_output_" + mda_to_site[mda_index] + "_abr_" + str(abr_val) + "_rho_" + str(rho_values[mda_index]) + "_nevertreated_" + str(never_ever_treated_values[mda_index]) + ".csv"
     )
-    # write_data_to_csv(
-    #     data,
-    #     "test_outputs/python_model_output/morbidity_output_" + str(mfp_abr_map[abr_val]) + ".csv",
-    # )
-    # write_data_to_csv(
-    #     age_data,
-    #     "test_outputs/python_model_output/morbidity_output_age-grouped_" + str(mfp_abr_map[abr_val]) + ".csv",
-    # )
-    # write_data_to_csv(
-    #     age_data_2,
-    #     "test_outputs/python_model_output/morbidity_output_age-grouped_2_" + str(mfp_abr_map[abr_val]) + ".csv",
-    # )
+    write_data_to_csv(
+        age_data,
+        "test_outputs/python_model_output/morbidity_output_age-grouped_" + mda_to_site[mda_index] + "_abr_" + str(abr_val) + "_rho_" + str(rho_values[mda_index]) + "_nevertreated_" + str(never_ever_treated_values[mda_index]) + ".csv"
+    )
+    write_data_to_csv(
+        age_data_2,
+        "test_outputs/python_model_output/morbidity_output_age-grouped_2_" + mda_to_site[mda_index] + "_abr_" + str(abr_val) + "_rho_" + str(rho_values[mda_index]) + "_nevertreated_" + str(never_ever_treated_values[mda_index]) + ".csv"
+    )

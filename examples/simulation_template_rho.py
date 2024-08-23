@@ -2,6 +2,7 @@ import os
 from functools import partial
 
 import h5py
+import numpy as np
 from tqdm.contrib.concurrent import process_map
 
 from epioncho_ibm.endgame_simulation import EndgameSimulation
@@ -10,11 +11,14 @@ from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
 
 
 # You can edit the inputs to this function to set more parameters dynamically
-def get_parameters(iter, abr=1641, kE=0.3):
+def get_parameters(iter, abr=1641, kE=0.3, coverages=[]):
     # all treatment (MDA) that you want to apply will be stored as a list of dictionaries
     # Each dictionary will describe the MDA being applied
     # If you want to apply vector control, it is considered a model change (explained below)
     treatment_program = []
+
+    for coverage in coverages:
+        treatment_program.append(coverage)
 
     # changes to the model parameters will also be stored as a list of dictionaries
     changes = []
@@ -68,8 +72,9 @@ def run_simulations(
     kE=0.3,
     start_time=1900,
     end_time=2005,
+    coverages=[]
 ):
-    endgame_structure = get_parameters(i, abr=abr, kE=kE)
+    endgame_structure = get_parameters(i, abr=abr, kE=kE, coverages=coverages)
 
     # Read in endgame objects and set up simulation
     endgame = EpionchoEndgameModel.parse_obj(endgame_structure)
@@ -121,71 +126,110 @@ def run_simulations(
             age_range=(5,80)
         )
 
-        age_groups = [(0,2), (2, 5), (5, 10), (10, 20), (20, 30), (30, 50), (50, 80)]
-        add_state_to_run_data(
-            state,
-            run_data=run_data_age,
-            # now we want to age group the data
-            with_age_groups=True,
-            number=True,
-            n_treatments=True,
-            achieved_coverage=True,
-            prevalence=True,
-            mean_worm_burden=True,
-            prevalence_OAE=True,
-            intensity=True,
-            with_sequela=True,
-            with_pnc=True,
-            custom_age_groups=age_groups,
-            saving_multiple_states=True,
-        )
+        # age_groups = [(0,2), (2, 5), (5, 10), (10, 20), (20, 30), (30, 50), (50, 80)]
+        # add_state_to_run_data(
+        #     state,
+        #     run_data=run_data_age,
+        #     # now we want to age group the data
+        #     with_age_groups=True,
+        #     number=True,
+        #     n_treatments=True,
+        #     achieved_coverage=True,
+        #     prevalence=True,
+        #     mean_worm_burden=True,
+        #     prevalence_OAE=True,
+        #     intensity=True,
+        #     with_sequela=True,
+        #     with_pnc=True,
+        #     custom_age_groups=age_groups,
+        #     saving_multiple_states=True,
+        # )
         
-        age_groups = [(0, 5), (5, 15), (15, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 80)]
-        add_state_to_run_data(
-            state,
-            run_data=run_data_age_2,
-            # now we want to age group the data
-            with_age_groups=True,
-            number=True,
-            n_treatments=True,
-            achieved_coverage=True,
-            prevalence=True,
-            mean_worm_burden=True,
-            prevalence_OAE=True,
-            intensity=True,
-            with_sequela=True,
-            with_pnc=True,
-            custom_age_groups=age_groups,
-            # we are not going to use `add_state_to_run_data` at this timestep anymore
-            saving_multiple_states=False,
-        )
+        # age_groups = [(5, 15), (15, 25), (25, 35), (35, 45), (45, 55), (55, 65), (65, 80)]
+        # add_state_to_run_data(
+        #     state,
+        #     run_data=run_data_age_2,
+        #     # now we want to age group the data
+        #     with_age_groups=True,
+        #     number=True,
+        #     n_treatments=True,
+        #     achieved_coverage=True,
+        #     prevalence=True,
+        #     mean_worm_burden=True,
+        #     prevalence_OAE=True,
+        #     intensity=True,
+        #     with_sequela=True,
+        #     with_pnc=True,
+        #     custom_age_groups=age_groups,
+        #     # we are not going to use `add_state_to_run_data` at this timestep anymore
+        #     saving_multiple_states=False,
+        # )
 
     return (run_data, run_data_age, run_data_age_2)
 
 
 # this is the function that python will start execution with when run
 if __name__ == "__main__":
-    abr_vals = [187, 240, 285, 615, 1082, 1450, 2200, 7000, 20000, 60000]
-
-    mfp_abr_map = {
-        187: "10pct",
-        240: "23pct",
-        285: "30pct",
-        615: "50-49pct",
-        1082: "60pct",
-        1450: "64pct",
-        2200: "70pct",
-        7000: "80pct",
-        20000: "85pct",
-        60000: "90pct"
-    }
+    mda_values = [
+        [68, 79, 78, 75, 78],
+        [73, 73, 76, 78, 77],
+        [77, 77, 79, 80, 79],
+        [76, 56, 23, 23, 48, 65],
+        [37, 39, 26, 52, 62, 66],
+        [77, 64, 60, 42, 67],
+        [80, 82, 84, 85, 81]
+    ]
+    
 
     max_workers = 40
     index = int(os.environ['PBS_ARRAY_INDEX']) - 1
-    abr_val = abr_vals[index]
+    mda_index = index // 9
+    rho_index = index % 9
+    coverage_values = []
+    mda_vals_to_use = mda_values[mda_index]
+    mda_start_year = 1920 - len(mda_vals_to_use)
+    rho_values = {
+        0: np.linspace(0.9, 1, 9),
+        1: np.linspace(0.9, 1, 9),
+        2: np.linspace(0.9, 1, 9),
+        3: np.linspace(0.9, 1, 9),
+        4: np.linspace(0.9, 1, 9),
+        5: np.linspace(0.9, 1, 9),
+        6: np.linspace(0.9, 1, 9)
+    }
+    never_compliant_pct_values = {
+        0: 0.17,
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+        6: 0.06,
+    }
+    if not(mda_index in rho_values):
+        exit()
+    for mda_val in mda_vals_to_use:
+        coverage_values.append({
+            "first_year": mda_start_year,
+            "last_year": mda_start_year,
+            "interventions": {
+                "treatment_interval": 1,
+                "total_population_coverage": mda_val / 100,
+                "correlation": rho_values[mda_index][rho_index],
+                "never_compliant_pct": never_compliant_pct_values[mda_index]
+            },
+        })
+        mda_start_year += 1
+    
+    print("MDA Index")
+    print(mda_index)
+    print("Rho")
+    print(rho_values[mda_index][rho_index])
+
+    abr_val = 1000
     # How many times we want to run the model for a given set of parameters
     # Typically this value is 200
-    num_iters = 1000
+    num_iters = 200
 
     # To use parallel processing
     # We need to make a "partial" of the function that we want to run in parallel
@@ -205,7 +249,8 @@ if __name__ == "__main__":
         # The start time of the model
         start_time=1900,
         # The end time of the model
-        end_time=2001,
+        end_time=1921,
+        coverages=coverage_values
     )
 
     # Now we use process_map to call the function we defined above
@@ -225,17 +270,17 @@ if __name__ == "__main__":
     # We are then going to save this data to a csv file
     write_data_to_csv(
         data,
-        "test_outputs/python_model_output/template_simulation_output_" + str(abr_val) + ".csv",
+        "test_outputs/python_model_output/template_simulation_output_nt_" + str(never_compliant_pct_values[mda_index]) + "_mda_" + str(mda_index) + "_rho_" + str(rho_values[mda_index][rho_index]) + ".csv",
     )
     # write_data_to_csv(
     #     data,
-    #     "test_outputs/python_model_output/morbidity_output_" + str(mfp_abr_map[abr_val]) + ".csv",
+    #     "test_outputs/python_model_output/morbidity_output_" + str(abr_val) + ".csv",
     # )
     # write_data_to_csv(
     #     age_data,
-    #     "test_outputs/python_model_output/morbidity_output_age-grouped_" + str(mfp_abr_map[abr_val]) + ".csv",
+    #     "test_outputs/python_model_output/morbidity_output_age-grouped_" + str(abr_val) + ".csv",
     # )
     # write_data_to_csv(
     #     age_data_2,
-    #     "test_outputs/python_model_output/morbidity_output_age-grouped_2_" + str(mfp_abr_map[abr_val]) + ".csv",
+    #     "test_outputs/python_model_output/morbidity_output_age-grouped_2_" + str(abr_val) + ".csv",
     # )
