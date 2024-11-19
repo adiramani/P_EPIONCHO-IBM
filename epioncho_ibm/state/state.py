@@ -337,7 +337,8 @@ class State(HDF5Dataclass, BaseState[Params]):
         )
 
     def microfilariae_per_skin_snip(
-        self, return_nan: bool = False
+        self, return_nan: bool = False,
+        num_skin_snip: int = 1,
     ) -> tuple[float, Array.Person.Float]:
         """
         Calculates number of mf in skin snip for all people.
@@ -384,7 +385,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             else:
                 return 0.0, mfobs_percent
         else:
-            return float(np.mean(mfobs_percent)), mfobs_percent
+            return float(np.mean(mfobs_percent) * num_skin_snip), mfobs_percent
 
     def mf_prevalence_in_population(self, return_nan: bool = False) -> float:
         """
@@ -412,6 +413,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             self.people.worms.male.sum(0)
             + self.people.worms.fertile.sum(0)
             + self.people.worms.infertile.sum(0)
+            + self.people.worms.perm_infertile.sum(0)
         )
 
     def mean_worm_burden(self) -> float:

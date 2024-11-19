@@ -1,6 +1,7 @@
 import csv
 import math
 from collections import defaultdict
+import numpy as np
 
 from epioncho_ibm import State
 
@@ -25,8 +26,12 @@ def add_state_to_run_data(
     with_age_groups: bool = True,
     with_sequela: bool = True,
     with_pnc: bool = True,
+    with_ov16=True,
+    with_atp=True,
+    with_female_worm_burden=True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
+    ov16_sens: tuple[float, float] = (100, 100),
     age_range: tuple[int, int] = (0, 80),
 ) -> None:
     age_min = age_range[0]
@@ -54,7 +59,7 @@ def add_state_to_run_data(
                     (
                         run_data[(*partial_key, "intensity")],
                         _,
-                    ) = age_state.microfilariae_per_skin_snip(return_nan=True)
+                    ) = age_state.microfilariae_per_skin_snip(return_nan=True, num_skin_snip=2)
                 if prevalence_OAE:
                     run_data[
                         (*partial_key, "OAE_prevalence")
@@ -65,6 +70,47 @@ def add_state_to_run_data(
                         run_data[(*partial_key, sequela)] = prev
                 if with_pnc:
                     run_data[(*partial_key, "pnc")] = age_state.percent_non_compliant()
+                if with_atp:
+                    run_data[
+                        (*partial_key, "ATP")
+                    ] = np.mean(age_state.people.blackfly.L3) * age_state._params.blackfly.bite_rate_per_person_per_year
+                    run_data[
+                        (*partial_key, "l3_per_blackfly")
+                    ] = np.mean(age_state.people.blackfly.L3)
+                if with_female_worm_burden:
+                    run_data[
+                        (*partial_key, "proportion_of_fertile_females")
+                    ] = float(
+                        age_state.people.worms.fertile.sum() /
+                        (age_state.people.worms.fertile.sum() + age_state.people.worms.infertile.sum() + age_state.people.worms.perm_infertile.sum())
+                    )
+                    run_data[
+                        (*partial_key, "mean_fertile_female_worm_burden")
+                    ] = float(np.mean((
+                        age_state.people.worms.fertile.sum(0)
+                    )))
+                    run_data[
+                        (*partial_key, "female_worm_prev")
+                    ] = np.mean((
+                        age_state.people.worms.infertile.sum(0) +
+                        age_state.people.worms.fertile.sum(0)
+                    ) > 0)
+                    run_data[
+                        (*partial_key, "fertile_female_worm_prev")
+                    ] = np.mean(age_state.people.worms.fertile.sum(0) > 0)
+                if with_ov16:
+                    run_data[
+                        (*partial_key, "true_ov16_seroprevalence")
+                    ] = np.mean(age_state.people.ov16_serostatus) if age_state.n_people != 0 else 0
+                    ov16_pos_mask = np.where(age_state.people.ov16_serostatus == True)[0]
+                    ov16_neg_mask = np.where(age_state.people.ov16_serostatus == False)[0]
+                    diagnostic_rand = np.random.rand(age_state.n_people)
+                    sampled_serostatus = np.zeros(age_state.n_people)
+                    sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0]
+                    sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1]
+                    run_data[
+                        (*partial_key, "sampled_ov16_seroprevalence")
+                    ] = np.mean(sampled_serostatus) if age_state.n_people != 0 else 0
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -79,7 +125,7 @@ def add_state_to_run_data(
                 (
                     run_data[(*partial_key, "intensity")],
                     _,
-                ) = state.microfilariae_per_skin_snip(return_nan=True)
+                ) = state.microfilariae_per_skin_snip(return_nan=True, num_skin_snip=2)
             if prevalence_OAE:
                 run_data[(*partial_key, "OAE_prevalence")] = state.OAE_prevalence()
             if with_sequela:
@@ -88,6 +134,47 @@ def add_state_to_run_data(
                     run_data[(*partial_key, sequela)] = prev
             if with_pnc:
                 run_data[(*partial_key, "pnc")] = state.percent_non_compliant()
+            if with_atp:
+                run_data[
+                    (*partial_key, "ATP")
+                ] = np.mean(state.people.blackfly.L3) * state._params.blackfly.bite_rate_per_person_per_year
+                run_data[
+                    (*partial_key, "l3_per_blackfly")
+                ] = np.mean(state.people.blackfly.L3)
+            if with_female_worm_burden:
+                run_data[
+                    (*partial_key, "proportion_of_fertile_females")
+                ] = float(
+                    state.people.worms.fertile.sum() /
+                    (state.people.worms.infertile.sum() + state.people.worms.fertile.sum() + state.people.worms.perm_infertile.sum())
+                )
+                run_data[
+                    (*partial_key, "mean_fertile_female_worm_burden")
+                ] = float(np.mean((
+                    state.people.worms.fertile.sum(0)
+                )))
+                run_data[
+                    (*partial_key, "female_worm_prev")
+                ] = np.mean((
+                    state.people.worms.infertile.sum(0) +
+                    state.people.worms.fertile.sum(0)
+                ) > 0)
+                run_data[
+                    (*partial_key, "fertile_female_worm_prev")
+                ] = np.mean(state.people.worms.fertile.sum(0) > 0)
+            if with_ov16:
+                run_data[
+                    (*partial_key, "true_ov16_seroprevalence")
+                ] = np.mean(state.people.ov16_serostatus)
+                ov16_pos_mask = np.where(state.people.ov16_serostatus == True)[0]
+                ov16_neg_mask = np.where(state.people.ov16_serostatus == False)[0]
+                diagnostic_rand = np.random.rand(state.n_people)
+                sampled_serostatus = np.zeros(state.n_people)
+                sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0]
+                sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1]
+                run_data[
+                    (*partial_key, "sampled_ov16_seroprevalence")
+                ] = np.mean(sampled_serostatus)
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:

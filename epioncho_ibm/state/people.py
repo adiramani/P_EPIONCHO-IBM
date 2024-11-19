@@ -158,6 +158,7 @@ class WormGroup(HDF5Dataclass):
 
     male: Array.WormCat.Person.Int
     infertile: Array.WormCat.Person.Int
+    perm_infertile: Array.WormCat.Person.Int
     fertile: Array.WormCat.Person.Int
 
     def __eq__(self, other: object) -> bool:
@@ -166,6 +167,7 @@ class WormGroup(HDF5Dataclass):
                 np.array_equal(self.male, other.male)
                 and np.array_equal(self.infertile, other.infertile)
                 and np.array_equal(self.fertile, other.fertile)
+                and np.array_equal(self.perm_infertile, other.perm_infertile)
             )
         else:
             return False
@@ -175,6 +177,7 @@ class WormGroup(HDF5Dataclass):
         return cls(
             male=np.zeros(population, dtype=int),
             infertile=np.zeros(population, dtype=int),
+            perm_infertile=np.zeros(population, dtype=int),
             fertile=np.zeros(population, dtype=int),
         )
 
@@ -182,6 +185,7 @@ class WormGroup(HDF5Dataclass):
         return WormGroup(
             male=self.male.copy(),
             infertile=self.infertile.copy(),
+            perm_infertile=self.perm_infertile.copy(),
             fertile=self.fertile.copy(),
         )
 
@@ -252,6 +256,7 @@ class People(HDF5Dataclass):
     has_sequela: dict[str, Array.Person.Bool]
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
+    ov16_serostatus: Optional[Array.Person.Bool]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -281,6 +286,7 @@ class People(HDF5Dataclass):
             and dict_fully_equal(self.has_sequela, other.has_sequela)
             and dict_fully_equal(self.countdown_sequela, other.countdown_sequela)
             and array_fully_equal(self.has_been_treated, other.has_been_treated)
+            and array_fully_equal(self.ov16_serostatus, other.ov16_serostatus)
         )
 
     def __len__(self):
@@ -319,6 +325,7 @@ class People(HDF5Dataclass):
             permanent_infertility=last_treatment.copy(),
         )
         has_been_treated = np.full(n_people, False)
+        ov16_serostatus = np.full(n_people, False)
         # individual exposure to fly bites
         individual_exposure = people_generator.gamma(
             shape=params.gamma_distribution,
@@ -358,6 +365,8 @@ class People(HDF5Dataclass):
                 * params.worms.initial_worms,
                 infertile=np.ones((params.worms.worm_age_stages, n_people), dtype=int)
                 * params.worms.initial_worms,
+                perm_infertile=np.ones((params.worms.worm_age_stages, n_people), dtype=int)
+                * params.worms.initial_worms,
                 fertile=np.ones((params.worms.worm_age_stages, n_people), dtype=int)
                 * params.worms.initial_worms,
             ),
@@ -371,6 +380,7 @@ class People(HDF5Dataclass):
             has_sequela=has_sequela,
             countdown_sequela=countdown_sequela,
             has_been_treated=has_been_treated,
+            ov16_serostatus=ov16_serostatus
         )
 
     @staticmethod
@@ -445,6 +455,7 @@ class People(HDF5Dataclass):
             self.worms.male[:, people_to_die] = 0
             self.worms.fertile[:, people_to_die] = 0
             self.worms.infertile[:, people_to_die] = 0
+            self.worms.perm_infertile[:, people_to_die] = 0
             self.was_infected[people_to_die] = False
             self.has_OAE[people_to_die] = False
             self.tested_for_OAE[people_to_die] = False
@@ -457,6 +468,7 @@ class People(HDF5Dataclass):
                 size=total_people_to_die,
             )
             self.has_been_treated[people_to_die] = False
+            self.ov16_serostatus[people_to_die] = False
             for arr in self.has_sequela.values():
                 arr[people_to_die] = False
             for arr in self.countdown_sequela.values():
@@ -489,6 +501,7 @@ class People(HDF5Dataclass):
                 male=self.worms.male[:, rel_ages],
                 fertile=self.worms.fertile[:, rel_ages],
                 infertile=self.worms.infertile[:, rel_ages],
+                perm_infertile=self.worms.perm_infertile[:, rel_ages],
             ),
             last_treatment=LastTreatment(
                 time=self.last_treatment.time[rel_ages],
@@ -520,6 +533,7 @@ class People(HDF5Dataclass):
                 name: a[rel_ages] for name, a in self.countdown_sequela.items()
             },
             has_been_treated=self.has_been_treated[rel_ages],
+            ov16_serostatus=self.ov16_serostatus[rel_ages]
         )
 
     def get_infected(self) -> Array.Person.Bool:

@@ -14,6 +14,7 @@ __all__ = ["calculate_new_worms"]
 def _calc_dead_worms(
     current_worms: WormGroup,
     female_mortalities_override: Array.WormCat.Person.Float | None,
+    female_sterilization_mortalities_override: Array.WormCat.Person.Float | None,
     mortalities_generator: Generator,
     numpy_bit_gen: NumpyGenerator,
 ) -> WormGroup:
@@ -52,6 +53,11 @@ def _calc_dead_worms(
         infertile=_calc_dead_worms_single_group(
             current_worms=current_worms.infertile,
             mortalities_override=female_mortalities_override,
+            mortalities_generator=mortalities_generator,
+        ),
+        perm_infertile=_calc_dead_worms_single_group(
+            current_worms=current_worms.infertile + current_worms.fertile,
+            mortalities_override=female_sterilization_mortalities_override,
             mortalities_generator=mortalities_generator,
         ),
         fertile=_calc_dead_worms_single_group(
@@ -98,6 +104,11 @@ def _calc_outbound_worms(
             current_worms=current_worms.infertile,
             worm_age_rate_generator=worm_age_rate_generator,
         ),
+        perm_infertile=_calc_outbound_worms_single_group(
+            dead_worms=dead_worms.perm_infertile,
+            current_worms=current_worms.perm_infertile,
+            worm_age_rate_generator=worm_age_rate_generator,
+        ),
         fertile=_calc_outbound_worms_single_group(
             dead_worms=dead_worms.fertile,
             current_worms=current_worms.fertile,
@@ -131,6 +142,9 @@ def _calc_inbound_worms(
         infertile=utils.lag_array(delayed_females, outbound.infertile),
         fertile=utils.lag_array(
             np.zeros(outbound.fertile.shape[1], dtype="int"), outbound.fertile
+        ),
+        perm_infertile=utils.lag_array(
+            np.zeros(outbound.perm_infertile.shape[1], dtype="int"), outbound.perm_infertile
         ),
     )
 
@@ -242,15 +256,20 @@ def _calc_new_worms(
         current_worms.infertile - delta_fertility - dead.infertile + transit_infertile
     )
 
+    transit_perm_infertile = inbound.perm_infertile - outbound.perm_infertile
+    new_perm_infertile = (
+        current_worms.perm_infertile + transit_perm_infertile - dead.perm_infertile
+    )
+
     transit_fertile = inbound.fertile - outbound.fertile
     new_fertile = (
         current_worms.fertile + delta_fertility - dead.fertile + transit_fertile
     )
     if debug:
         assert np.all(
-            (new_male >= 0) & (new_infertile >= 0) & (new_fertile >= 0)
-        ), "Worms became negative!"
-    return WormGroup(male=new_male, infertile=new_infertile, fertile=new_fertile)
+            (new_male >= 0) & (new_infertile >= 0) & (new_fertile >= 0) & (new_perm_infertile >= 0)
+        ), f"Worms became negative!"
+    return WormGroup(male=new_male, infertile=new_infertile, fertile=new_fertile, perm_infertile=new_perm_infertile)
 
 
 def _calc_fertile_to_non_fertile_rate(
@@ -304,6 +323,15 @@ def _calc_female_mortalities(
     female_mortalities[coverage_in] += tiled_infertilities[coverage_in]
     return female_mortalities.T
 
+def _calc_female_mortalities_sterilization(
+    mortalities: Array.WormCat.Float,
+    permanent_infertility: Array.Person.Float,
+    coverage_in: Array.Person.Bool,
+) -> Array.WormCat.Person.Float:
+    female_mortalities = np.tile(np.zeros(len(mortalities)), (len(coverage_in), 1))
+    tiled_infertilities = np.tile(permanent_infertility, (len(mortalities), 1)).T
+    female_mortalities[coverage_in] += tiled_infertilities[coverage_in]
+    return female_mortalities.T
 
 def calculate_new_worms(
     current_worms: WormGroup,
@@ -348,6 +376,9 @@ def calculate_new_worms(
     """
 
     female_mortalities: None | Array.WormCat.Person.Float = None
+    female_mortalities_sterilization: Array.WormCat.Person.Float = _calc_female_mortalities_sterilization(
+        mortalities, np.zeros(len(worm_delay_array)), np.full(len(worm_delay_array), True)
+    )
     fertile_to_non_fertile_rate = None
     if treatment is not None:
         if treatment.treatment_occurred:
@@ -371,6 +402,10 @@ def calculate_new_worms(
             female_mortalities = _calc_female_mortalities(
                 mortalities, last_treatment.permanent_infertility, treatment.coverage_in
             )
+            female_mortalities_sterilization = _calc_female_mortalities_sterilization(
+                mortalities, last_treatment.permanent_infertility, treatment.coverage_in
+            )
+            
 
         fertile_to_non_fertile_rate = _calc_fertile_to_non_fertile_rate(
             current_time=current_time,
@@ -381,6 +416,7 @@ def calculate_new_worms(
     dead = _calc_dead_worms(
         current_worms=current_worms,
         female_mortalities_override=female_mortalities,
+        female_sterilization_mortalities_override=female_mortalities_sterilization,
         mortalities_generator=mortalities_generator,
         numpy_bit_gen=numpy_bit_gen,
     )

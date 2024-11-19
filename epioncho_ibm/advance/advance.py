@@ -197,6 +197,14 @@ def advance_state(state: State, debug: bool = False) -> None:
             new_has_sequela[name] = old_rel_sequela | new_condition
 
     state.people.has_sequela = new_has_sequela
+    new_seropositives = np.logical_and(
+        (np.sum(state.people.mf, axis=0) > 0),
+        np.logical_and(
+            (np.sum(state.people.worms.fertile, axis=0) > 0),
+            (np.sum(state.people.worms.male, axis=0) > 0)
+        )
+    )
+    state.people.ov16_serostatus[new_seropositives] = True
 
     people_to_die: Array.Person.Bool = np.logical_or(
         state.derived_params.people_to_die_generator.binomial(
