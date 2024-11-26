@@ -113,6 +113,8 @@ def endgame_to_params(endgame: EpionchoEndgameModel) -> list[tuple[float, Params
             treatment_dict = program.interventions.dict()
             interval_years = treatment_dict.pop("treatment_interval")
             treatment_name = treatment_dict.pop("treatment_name")
+            threshold = treatment_dict.pop("stop_threshold") if "stop_threshold" in treatment_dict else 0
+            sens_spec = treatment_dict.pop("ov16_sens_spec") if "stop_threshold" in treatment_dict else (1.0, 1.0)
             treatment = TreatmentParams(
                 **treatment_dict,
                 interval_years=interval_years,
@@ -120,6 +122,8 @@ def endgame_to_params(endgame: EpionchoEndgameModel) -> list[tuple[float, Params
                 stop_time=_time_from_year_and_month(
                     program.last_year, program.last_month, is_last=True
                 ),
+                stop_threshold = threshold,
+                ov16_sens_spec = sens_spec,
                 treatment_name=treatment_name,
             )
 

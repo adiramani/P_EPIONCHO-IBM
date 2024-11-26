@@ -257,6 +257,7 @@ class People(HDF5Dataclass):
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
     ov16_serostatus: Optional[Array.Person.Bool]
+    sero_threshold_reached: Optional[Array.Person.Bool]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -287,6 +288,7 @@ class People(HDF5Dataclass):
             and dict_fully_equal(self.countdown_sequela, other.countdown_sequela)
             and array_fully_equal(self.has_been_treated, other.has_been_treated)
             and array_fully_equal(self.ov16_serostatus, other.ov16_serostatus)
+            and self.sero_threshold_reached == other.sero_threshold_reached
         )
 
     def __len__(self):
@@ -380,7 +382,8 @@ class People(HDF5Dataclass):
             has_sequela=has_sequela,
             countdown_sequela=countdown_sequela,
             has_been_treated=has_been_treated,
-            ov16_serostatus=ov16_serostatus
+            ov16_serostatus=ov16_serostatus,
+            sero_threshold_reached=False,
         )
 
     @staticmethod
@@ -533,7 +536,8 @@ class People(HDF5Dataclass):
                 name: a[rel_ages] for name, a in self.countdown_sequela.items()
             },
             has_been_treated=self.has_been_treated[rel_ages],
-            ov16_serostatus=self.ov16_serostatus[rel_ages]
+            ov16_serostatus=self.ov16_serostatus[rel_ages],
+            sero_threshold_reached=self.sero_threshold_reached,
         )
 
     def get_infected(self) -> Array.Person.Bool:

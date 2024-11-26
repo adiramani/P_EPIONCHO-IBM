@@ -460,6 +460,15 @@ class State(HDF5Dataclass, BaseState[Params]):
             else:
                 sequelae_prevalence[name] = prev
         return sequelae_prevalence
+    
+    def sample_seroprevalence(self, sens_spec: tuple[float, float]) -> float:
+        ov16_pos_mask = np.where(self.people.ov16_serostatus == True)[0]
+        ov16_neg_mask = np.where(self.people.ov16_serostatus == False)[0]
+        diagnostic_rand = np.random.rand(self.n_people)
+        sampled_serostatus = np.zeros(self.n_people)
+        sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= sens_spec[0]
+        sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > sens_spec[1]
+        return np.mean(sampled_serostatus)
 
     def percent_non_compliant(self) -> float:
         min_age = (

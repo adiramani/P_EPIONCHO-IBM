@@ -22,6 +22,7 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.derived_params.treatment_index,
         state.people.ages,
         state.people.compliance,
+        state.people.sero_threshold_reached,
         state.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
@@ -205,6 +206,19 @@ def advance_state(state: State, debug: bool = False) -> None:
         )
     )
     state.people.ov16_serostatus[new_seropositives] = True
+
+    old_val = state.people.sero_threshold_reached
+    if state._params.treatment is not None:
+        print("in here")
+        #apparent_sero_prev = state.sample_seroprevalence(state._params.treatment.ov16_sens_spec)
+        apparent_sero_prev = state.get_state_for_age_group(5, 10).sample_seroprevalence(state._params.treatment.ov16_sens_spec)
+        print(apparent_sero_prev)
+        if (apparent_sero_prev < state._params.treatment.stop_threshold):
+            print("setting to true")
+            state.people.sero_threshold_reached = True
+
+    if old_val != state.people.sero_threshold_reached:
+        print(f"New Val {old_val} to {state.people.sero_threshold_reached}")
 
     people_to_die: Array.Person.Bool = np.logical_or(
         state.derived_params.people_to_die_generator.binomial(

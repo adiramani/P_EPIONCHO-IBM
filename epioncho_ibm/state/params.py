@@ -33,6 +33,8 @@ class TreatmentParams(SpecificTreatmentParams):
     start_time: float  # The iteration upon which treatment commences
     stop_time: float  # the iteration upon which treatment stops
     treatment_name: str = "IVM"
+    stop_threshold: float = 0.01
+    ov16_sens_spec: tuple[float, float] = (0.80, 0.99)
 
 
 class WormParams(BaseModel):

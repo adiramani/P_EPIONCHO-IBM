@@ -106,11 +106,12 @@ def add_state_to_run_data(
                     ov16_neg_mask = np.where(age_state.people.ov16_serostatus == False)[0]
                     diagnostic_rand = np.random.rand(age_state.n_people)
                     sampled_serostatus = np.zeros(age_state.n_people)
-                    sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0]
-                    sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1]
+                    sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0] / 100
+                    sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1] / 100
                     run_data[
                         (*partial_key, "sampled_ov16_seroprevalence")
                     ] = np.mean(sampled_serostatus) if age_state.n_people != 0 else 0
+                    run_data[(*partial_key, "has_treatment_stopped")] = age_state.people.sero_threshold_reached
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -175,6 +176,7 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence")
                 ] = np.mean(sampled_serostatus)
+                run_data[(*partial_key, "has_treatment_stopped")] = state.people.sero_threshold_reached
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
