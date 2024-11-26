@@ -14,7 +14,6 @@ __all__ = ["calculate_new_worms"]
 def _calc_dead_worms(
     current_worms: WormGroup,
     female_mortalities_override: Array.WormCat.Person.Float | None,
-    female_sterilization_mortalities_override: Array.WormCat.Person.Float | None,
     mortalities_generator: Generator,
     numpy_bit_gen: NumpyGenerator,
 ) -> WormGroup:
@@ -56,8 +55,8 @@ def _calc_dead_worms(
             mortalities_generator=mortalities_generator,
         ),
         perm_infertile=_calc_dead_worms_single_group(
-            current_worms=current_worms.infertile + current_worms.fertile,
-            mortalities_override=female_sterilization_mortalities_override,
+            current_worms=current_worms.perm_infertile,
+            mortalities_override=female_mortalities_override,
             mortalities_generator=mortalities_generator,
         ),
         fertile=_calc_dead_worms_single_group(
@@ -117,10 +116,22 @@ def _calc_outbound_worms(
     )
 
 
+def _calc_sterilizied_worms(
+        current_worms: Array.WormCat.Person.Int,
+        sterilization_effect: Array.WormCat.Person.Float,
+        numpy_bit_gen: Generator,
+    ) -> Array.WormCat.Person.Int:
+        assert current_worms.ndim == 2
+        return numpy_bit_gen.binomial(n=current_worms, p=sterilization_effect)
+
+
 def _calc_inbound_worms(
     worm_delay: Array.Person.Int,
     worm_sex_ratio_generator: Generator,
     outbound: WormGroup,
+    current_females: Array.Person.Int,
+    sterilization_effect: Array.WormCat.Person.Float,
+    numpy_bit_gen: Generator,
 ):
     """
     Calculates the inbound worms into each compartment, drawing from the final column of
@@ -143,9 +154,7 @@ def _calc_inbound_worms(
         fertile=utils.lag_array(
             np.zeros(outbound.fertile.shape[1], dtype="int"), outbound.fertile
         ),
-        perm_infertile=utils.lag_array(
-            np.zeros(outbound.perm_infertile.shape[1], dtype="int"), outbound.perm_infertile
-        ),
+        perm_infertile=_calc_sterilizied_worms(current_females, sterilization_effect, numpy_bit_gen),
     )
 
 
@@ -416,7 +425,6 @@ def calculate_new_worms(
     dead = _calc_dead_worms(
         current_worms=current_worms,
         female_mortalities_override=female_mortalities,
-        female_sterilization_mortalities_override=female_mortalities_sterilization,
         mortalities_generator=mortalities_generator,
         numpy_bit_gen=numpy_bit_gen,
     )
@@ -431,6 +439,9 @@ def calculate_new_worms(
         worm_delay=worm_delay_array,
         worm_sex_ratio_generator=worm_sex_ratio_generator,
         outbound=outbound,
+        current_females=current_worms.fertile + current_worms.infertile,
+        sterilization_effect=female_mortalities_sterilization,
+        numpy_bit_gen=numpy_bit_gen,
     )
 
     delta_fertility = _calc_delta_fertility(
