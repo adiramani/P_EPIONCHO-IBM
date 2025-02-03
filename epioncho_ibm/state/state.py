@@ -151,6 +151,7 @@ class State(HDF5Dataclass, BaseState[Params]):
     n_treatments_population: Optional[dict[float, Array.General.Float]]
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
+    last_ov16_survey: float = 0
     derived_params: DerivedParams = field(init=False, repr=False)
     numpy_bit_generator: Generator = field(init=False, repr=False)
     fit_func_OAE: Callable[

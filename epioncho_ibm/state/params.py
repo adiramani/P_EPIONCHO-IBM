@@ -165,8 +165,11 @@ class Params(BaseMutableParams, BaseInitialParams):
 class EndgameParams(BaseMutableParams, BaseInitialParams):
     pass
 
+class BaseProgramParamsNew(BaseProgramParams):
+    stop_threshold: float = 0.01
+    ov16_sens_spec: tuple[float, float] = (0.80, 0.99)
 
-class EndgameProgramParams(SpecificTreatmentParams, BaseProgramParams):
+class EndgameProgramParams(SpecificTreatmentParams, BaseProgramParamsNew):
     pass
 
 
