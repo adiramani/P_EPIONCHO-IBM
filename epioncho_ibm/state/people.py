@@ -252,6 +252,7 @@ class People(HDF5Dataclass):
     has_sequela: dict[str, Array.Person.Bool]
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
+    threshold_reached: Optional[int]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -370,6 +371,7 @@ class People(HDF5Dataclass):
             has_sequela=has_sequela,
             countdown_sequela=countdown_sequela,
             has_been_treated=has_been_treated,
+            threshold_reached=0,
         )
 
     @staticmethod
@@ -500,6 +502,7 @@ class People(HDF5Dataclass):
                 name: a[rel_ages] for name, a in self.countdown_sequela.items()
             },
             has_been_treated=self.has_been_treated[rel_ages],
+            threshold_reached=self.threshold_reached,
         )
 
     def get_infected(self) -> Array.Person.Bool:

@@ -11,6 +11,14 @@ from .worms import calculate_new_worms
 
 
 def advance_state(state: State, debug: bool = False) -> None:
+    if state.last_survey is None:
+        state.last_survey = 0
+    if state.last_survey < np.floor(state.current_time):
+        if state._params.treatment is not None:
+            measured_mf_prev = state.mf_prevalence_in_population(return_nan=False)
+            if measured_mf_prev < 0.01:
+                state.people.threshold_reached = 1
+        state.last_survey = np.floor(state.current_time)
     """Advance the state forward one time step from t to t + dt"""
     _, measured_mf = state.microfilariae_per_skin_snip()
     rounded_mf: Array.Person.Float = np.round(measured_mf)
@@ -22,6 +30,7 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.derived_params.treatment_index,
         state.people.ages,
         state.people.compliance,
+        state.people.threshold_reached,
         state.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
