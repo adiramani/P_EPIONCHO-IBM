@@ -158,7 +158,7 @@ class State(HDF5Dataclass, BaseState[Params]):
     ] = field(init=False, repr=False)
 
     def __post_init__(self):
-        self._derive_params(None)
+        self._derive_params({})
         self.numpy_bit_generator = Generator(SFC64(self._params.seed))
         MF_COUNTS = [3, 13, 36, 76, 151, 200]
 
@@ -210,27 +210,60 @@ class State(HDF5Dataclass, BaseState[Params]):
         if self.people.has_been_treated is None:
             self.people.has_been_treated = np.full(params.n_people, False)
 
-        oldGenerators = None
-        # brute force - if one generator is initialized, we expect all of them to be initialized
-        if (self._params.seed == params.seed) and (
-            self.derived_params.people_to_die_generator is not None
-        ):
-            oldGenerators = {
-                "people_to_die_generator": self.derived_params.people_to_die_generator,
-                "worm_age_rate_generator": self.derived_params.worm_age_rate_generator,
-                "worm_sex_ratio_generator": self.derived_params.worm_sex_ratio_generator,
-                "worm_lambda_zero_generator": self.derived_params.worm_lambda_zero_generator,
-                "worm_omega_generator": self.derived_params.worm_omega_generator,
-                "worm_mortality_generator": self.derived_params.worm_mortality_generator,
-            }
+
+        all_generators = self._collect_generators()
+        generators_to_keep = self._determine_generators_to_keep(all_generators, self._params, params)
+        
         self._params = mutable_to_immutable(params)
-        self._derive_params(oldGenerators)
+        self._derive_params(generators_to_keep)
 
     def _derive_params(self, oldGenerators) -> None:
         assert self._params
         self.derived_params = DerivedParams(
             immutable_to_mutable(self._params), self.current_time, oldGenerators
         )
+
+    def _collect_generators(self) -> dict[str, Generator]:
+        generators = {}
+        for generator_name in self.derived_params.GENERATOR_NAMES:
+            generators[generator_name] = getattr(self.derived_params, generator_name, None)
+        return generators
+    
+    def _determine_generators_to_keep(self, generators_dict, old_params, new_params) -> dict[str, Generator]:
+        generator_conditions = self._have_generator_parameters_changed(old_params, new_params)
+        for generator_name in generators_dict.keys():
+            if (generators_dict[generator_name] is not None) and (generator_conditions.get(generator_name, False)):
+                generators_dict[generator_name] = None
+        return generators_dict
+    
+    def _have_generator_parameters_changed(self, old_params, new_params) -> dict[str, bool]:
+        return {
+            "people_to_die_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.delta_time / old_params.humans.mean_human_age) != (new_params.delta_time / new_params.humans.mean_human_age)
+            ),
+            "worm_age_rate_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.delta_time / old_params.worms.worms_aging) != (new_params.delta_time / new_params.worms.worms_aging)
+            ),
+            "worm_sex_ratio_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.worms.sex_ratio != new_params.worms.sex_ratio)
+            ),
+            "worm_lambda_zero_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.worms.lambda_zero * old_params.delta_time) != (new_params.worms.lambda_zero * new_params.delta_time)
+            ),
+            "worm_omega_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.worms.omega * old_params.delta_time) != (new_params.worms.omega * new_params.delta_time)
+                ),
+            "worm_mortality_generator": (
+                (old_params.seed != new_params.seed) or
+                (old_params.worms.mu_worms2 != new_params.worms.mu_worms2) or 
+                (old_params.worms.mu_worms1 != new_params.worms.mu_worms1)
+            ),
+        }
 
     def get_state_for_age_group(self, age_start: float, age_end: float) -> "State":
         return State(
