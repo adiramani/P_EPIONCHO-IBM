@@ -184,7 +184,6 @@ class State(HDF5Dataclass, BaseState[Params]):
         Args:
             params (Params): New set of parameters
         """
-
         if params.treatment is None:
             self.people.compliance = np.zeros(params.n_people)
         elif (
@@ -260,6 +259,7 @@ class State(HDF5Dataclass, BaseState[Params]):
                 ),
             "worm_mortality_generator": (
                 (old_params.seed != new_params.seed) or
+                (old_params.delta_time != new_params.delta_time) or 
                 (old_params.worms.mu_worms2 != new_params.worms.mu_worms2) or 
                 (old_params.worms.mu_worms1 != new_params.worms.mu_worms1)
             ),
