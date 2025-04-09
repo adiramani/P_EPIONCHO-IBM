@@ -5,7 +5,7 @@ from typing import IO, Callable, Optional, overload
 import numpy as np
 from endgame_simulations.simulations import BaseState
 from hdf5_dataclass import HDF5Dataclass
-from numpy.random import SFC64, Generator
+from numpy.random import Generator
 from pydantic import BaseModel
 from scipy.optimize import curve_fit
 
@@ -152,14 +152,12 @@ class State(HDF5Dataclass, BaseState[Params]):
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
     derived_params: DerivedParams = field(init=False, repr=False)
-    numpy_bit_generator: Generator = field(init=False, repr=False)
     fit_func_OAE: Callable[
         [Array.Person.Int | Array.Person.Float], Array.Person.Float
     ] = field(init=False, repr=False)
 
     def __post_init__(self):
         self._derive_params({})
-        self.numpy_bit_generator = Generator(SFC64(self._params.seed))
         MF_COUNTS = [3, 13, 36, 76, 151, 200]
 
         PROB = [0.0439, 0.072, 0.0849, 0.1341, 0.1538, 0.2]
@@ -184,21 +182,8 @@ class State(HDF5Dataclass, BaseState[Params]):
         Args:
             params (Params): New set of parameters
         """
-        if params.treatment is None:
-            self.people.compliance = np.zeros(params.n_people)
-        elif (
-            (self._params.treatment is None)
-            or (self._params.treatment.correlation != params.treatment.correlation)
-            or (
-                self._params.treatment.total_population_coverage
-                != params.treatment.total_population_coverage
-            )
-        ):
-            self.people.update_treatment_prob(
-                params.treatment.correlation,
-                params.treatment.total_population_coverage,
-                self.numpy_bit_generator,
-            )
+        all_generators = self._collect_generators()
+        generators_to_keep = self._determine_generators_to_keep(all_generators, self._params.seed, params.seed)
 
         # backwards compatibility check, where n_treatments used to be an array, instead of a dict
         if not isinstance(self.n_treatments, dict):
@@ -209,12 +194,10 @@ class State(HDF5Dataclass, BaseState[Params]):
         if self.people.has_been_treated is None:
             self.people.has_been_treated = np.full(params.n_people, False)
 
-
-        all_generators = self._collect_generators()
-        generators_to_keep = self._determine_generators_to_keep(all_generators, self._params, params)
-        
+        old_params = self.get_params()
         self._params = mutable_to_immutable(params)
         self._derive_params(generators_to_keep)
+        self.update_compliance(old_params, params)
 
     def _derive_params(self, oldGenerators) -> None:
         assert self._params
@@ -228,42 +211,28 @@ class State(HDF5Dataclass, BaseState[Params]):
             generators[generator_name] = getattr(self.derived_params, generator_name, None)
         return generators
     
-    def _determine_generators_to_keep(self, generators_dict, old_params, new_params) -> dict[str, Generator]:
-        generator_conditions = self._have_generator_parameters_changed(old_params, new_params)
+    def _determine_generators_to_keep(self, generators_dict, old_seed, new_seed) -> dict[str, Generator]:
         for generator_name in generators_dict.keys():
-            if (generators_dict[generator_name] is not None) and (generator_conditions.get(generator_name, False)):
+            if (generators_dict[generator_name] is not None) and (old_seed != new_seed):
                 generators_dict[generator_name] = None
         return generators_dict
     
-    def _have_generator_parameters_changed(self, old_params, new_params) -> dict[str, bool]:
-        return {
-            "people_to_die_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.delta_time / old_params.humans.mean_human_age) != (new_params.delta_time / new_params.humans.mean_human_age)
-            ),
-            "worm_age_rate_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.delta_time / old_params.worms.worms_aging) != (new_params.delta_time / new_params.worms.worms_aging)
-            ),
-            "worm_sex_ratio_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.worms.sex_ratio != new_params.worms.sex_ratio)
-            ),
-            "worm_lambda_zero_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.worms.lambda_zero * old_params.delta_time) != (new_params.worms.lambda_zero * new_params.delta_time)
-            ),
-            "worm_omega_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.worms.omega * old_params.delta_time) != (new_params.worms.omega * new_params.delta_time)
-                ),
-            "worm_mortality_generator": (
-                (old_params.seed != new_params.seed) or
-                (old_params.delta_time != new_params.delta_time) or 
-                (old_params.worms.mu_worms2 != new_params.worms.mu_worms2) or 
-                (old_params.worms.mu_worms1 != new_params.worms.mu_worms1)
-            ),
-        }
+    def update_compliance(self, old_params: Params, new_params: Params):
+        if new_params.treatment is None:
+            self.people.compliance = np.zeros(new_params.n_people)
+        elif (
+            (old_params.treatment is None)
+            or (old_params.treatment.correlation != new_params.treatment.correlation)
+            or (
+                old_params.treatment.total_population_coverage
+                != new_params.treatment.total_population_coverage
+            )
+        ):
+            self.people.update_treatment_prob(
+                new_params.treatment.correlation,
+                new_params.treatment.total_population_coverage,
+                self.derived_params.numpy_bit_generator,
+            )
 
     def get_state_for_age_group(self, age_start: float, age_end: float) -> "State":
         return State(
@@ -399,12 +368,12 @@ class State(HDF5Dataclass, BaseState[Params]):
             )
             for i in range(self._params.humans.skin_snip_number):
                 total_skin_snip_mf[:, i] = negative_binomial_alt_interface(
-                    n=kmf, mu=mu, numpy_bit_gen=self.numpy_bit_generator
+                    n=kmf, mu=mu, numpy_bit_gen=self.derived_params.numpy_bit_generator
                 )
             mfobs: Array.Person.Int = np.sum(total_skin_snip_mf, axis=1)
         else:
             mfobs: Array.Person.Int = negative_binomial_alt_interface(
-                n=kmf, mu=mu, numpy_bit_gen=self.numpy_bit_generator
+                n=kmf, mu=mu, numpy_bit_gen=self.derived_params.numpy_bit_generator
             )
 
         mfobs_percent: Array.Person.Float = mfobs / (
@@ -460,7 +429,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             _, measured_mf = self.microfilariae_per_skin_snip()
             rounded_mf: Array.Person.Int = np.round(measured_mf[current_test_for_OAE])
             epilepsy_prob = self.fit_func_OAE(rounded_mf)
-            out = np.equal(self.numpy_bit_generator.binomial(1, epilepsy_prob), 1)
+            out = np.equal(self.derived_params.numpy_bit_generator.binomial(1, epilepsy_prob), 1)
             self.people.has_OAE[current_test_for_OAE] |= out
 
     def OAE_prevalence(self) -> float:
