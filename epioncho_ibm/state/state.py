@@ -198,6 +198,7 @@ class State(HDF5Dataclass, BaseState[Params]):
         self._params = mutable_to_immutable(params)
         self._derive_params(generators_to_keep)
         self.update_compliance(old_params, params)
+        self.people.delay_arrays.rescale_delay_arrays(params)
 
     def _derive_params(self, oldGenerators) -> None:
         assert self._params
