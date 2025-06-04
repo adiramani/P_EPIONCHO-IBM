@@ -1,8 +1,7 @@
 from typing import Optional
 
 import numpy as np
-from fast_binomial import SFC64, Generator
-
+from numpy.random import SFC64, Generator
 import epioncho_ibm.state.sequelae
 
 from .params import Params
@@ -23,6 +22,7 @@ def get_sequela(
 
 
 class DerivedParams:
+    GENERATOR_NAMES: list[str] = ["people_to_die_generator", "worm_age_rate_generator", "worm_sex_ratio_generator", "worm_lambda_zero_generator", "worm_omega_generator", "worm_mortality_generator", "numpy_bit_generator"]
     worm_mortality_rate: Array.WormCat.Float
     fecundity_rates_worms: Array.WormCat.Float
     microfillarie_mortality_rate: Array.MFCat.Float
@@ -34,13 +34,14 @@ class DerivedParams:
     worm_lambda_zero_generator: Generator
     worm_omega_generator: Generator
     worm_mortality_generator: Generator
+    numpy_bit_generator: Generator
     sequela_classes: dict[str, type[Sequela]]
 
     def __init__(
         self,
         params: Params,
         current_time: float,
-        oldGenerators: dict[str, Generator] = None,
+        oldGenerators: dict[str, Generator] = {},
     ) -> None:
         worm_age_categories: Array.WormCat.Float = np.arange(
             start=0,
@@ -86,38 +87,48 @@ class DerivedParams:
         else:
             self.treatment_times = None
             self.treatment_index = 0
-
-        if oldGenerators is None:
-            seeds = [
-                params.seed + i + 1 if params.seed is not None else None
-                for i in range(6)
-            ]
-            self.people_to_die_generator = Generator(
-                SFC64(seeds[0]), params.delta_time / params.humans.mean_human_age
-            )
-            self.worm_age_rate_generator = Generator(
-                SFC64(seeds[1]), params.delta_time / params.worms.worms_aging
-            )
-            self.worm_sex_ratio_generator = Generator(
-                SFC64(seeds[2]), params.worms.sex_ratio
-            )
-            self.worm_lambda_zero_generator = Generator(
-                SFC64(seeds[3]), params.worms.lambda_zero * params.delta_time
-            )
-            self.worm_omega_generator = Generator(
-                SFC64(seeds[4]), params.worms.omega * params.delta_time
-            )
-            self.worm_mortality_generator = Generator(
-                SFC64(seeds[5]), self.worm_mortality_rate
-            )
-        else:
-            self.people_to_die_generator = oldGenerators["people_to_die_generator"]
-            self.worm_age_rate_generator = oldGenerators["worm_age_rate_generator"]
-            self.worm_sex_ratio_generator = oldGenerators["worm_sex_ratio_generator"]
-            self.worm_lambda_zero_generator = oldGenerators[
-                "worm_lambda_zero_generator"
-            ]
-            self.worm_omega_generator = oldGenerators["worm_omega_generator"]
-            self.worm_mortality_generator = oldGenerators["worm_mortality_generator"]
+        self.restore_old_generators(oldGenerators)
+        self.initialize_missing_generators(oldGenerators, params)
 
         self.sequela_classes = get_sequela(params.sequela_active)
+    
+    def restore_old_generators(self, oldGenerators):
+        for generatorName, gen in oldGenerators.items():
+            if gen is not None:
+                setattr(self, generatorName, gen)
+
+    def initialize_missing_generators(self, oldGenerators, params):
+        seeds = [
+            params.seed + i + 1 if params.seed is not None else None
+            for i in range(6)
+        ]
+        for generator_name in self.GENERATOR_NAMES:
+            if (generator_name not in oldGenerators) or (oldGenerators[generator_name] is None):
+                if generator_name == "numpy_bit_generator":
+                    self.numpy_bit_generator = Generator(
+                        SFC64(params.seed)
+                    )
+                if generator_name == "people_to_die_generator":
+                    self.people_to_die_generator = Generator(
+                        SFC64(seeds[0])
+                    )
+                if generator_name == "worm_age_rate_generator":
+                    self.worm_age_rate_generator = Generator(
+                        SFC64(seeds[1])
+                    )
+                if generator_name == "worm_sex_ratio_generator":
+                    self.worm_sex_ratio_generator = Generator(
+                        SFC64(seeds[2])
+                    )
+                if generator_name == "worm_lambda_zero_generator":
+                    self.worm_lambda_zero_generator = Generator(
+                        SFC64(seeds[3])
+                    )
+                if generator_name == "worm_omega_generator":
+                    self.worm_omega_generator = Generator(
+                        SFC64(seeds[4])
+                    )
+                if generator_name == "worm_mortality_generator":
+                    self.worm_mortality_generator = Generator(
+                        SFC64(seeds[5])
+                    )

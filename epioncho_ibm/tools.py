@@ -3,6 +3,8 @@ import math
 from collections import defaultdict
 import numpy as np
 
+import pandas as pd
+
 from epioncho_ibm import State
 
 Year = float
@@ -288,10 +290,18 @@ def add_state_to_run_data(
         state.reset_treatment_counter()
 
 
-def write_data_to_csv(
+def flatten_and_sort(
     data: list[Data],
-    csv_file: str,
-) -> None:
+) -> list[tuple]:
+    """
+    Converts the model outputs from multiple runs (using `add_state_to_run_data`) into a sorted 2d list, where each row represents a year, age group, measure, and value for all runs.
+
+    Args:
+        data (list[Data]): The model output from multiple runs of epioncho-ibm.
+
+    Returns:
+        A 2D list, of type list[tuple[Year, AgeStart, AgeEnd, Measurement, float | int, ...] where the value for each model run x is stored as a float in columns after "Measurement"
+    """
     data_combined_runs: dict[
         tuple[Year, AgeStart, AgeEnd, Measurement], list[float | int]
     ] = defaultdict(list)
@@ -303,6 +313,25 @@ def write_data_to_csv(
         (k + tuple(v) for k, v in data_combined_runs.items()),
         key=lambda r: (r[0], r[3], r[1]),
     )
+    return rows
+
+
+def convert_data_to_pandas(
+    data: list[Data],
+) -> pd.DataFrame:
+    rows = flatten_and_sort(data)
+    return pd.DataFrame(
+        rows,
+        columns=["year_id", "age_start", "age_end", "measure"]
+        + [f"draw_{i}" for i in range(len(data))],
+    )
+
+
+def write_data_to_csv(
+    data: list[Data],
+    csv_file: str,
+) -> None:
+    rows = flatten_and_sort(data)
     with open(csv_file, "w") as f:
         # create the csv writer
         writer = csv.writer(f)

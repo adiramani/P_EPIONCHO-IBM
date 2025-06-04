@@ -37,6 +37,7 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.people.compliance,
         state.people.sero_threshold_reached,
         state.numpy_bit_generator,
+        state.derived_params.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
         state.derived_params.treatment_index += 1
@@ -83,7 +84,7 @@ def advance_state(state: State, debug: bool = False) -> None:
         total_exposure,
         state.n_people,
         debug,
-        state.numpy_bit_generator,
+        state.derived_params.numpy_bit_generator,
     )
 
     if state.people.delay_arrays.worm_delay is None:
@@ -102,11 +103,12 @@ def advance_state(state: State, debug: bool = False) -> None:
         mortalities_generator=state.derived_params.worm_mortality_generator,
         current_time=state.current_time,
         debug=debug,
+        mortality_rate=state.derived_params.worm_mortality_rate,
         worm_age_rate_generator=state.derived_params.worm_age_rate_generator,
         worm_sex_ratio_generator=state.derived_params.worm_sex_ratio_generator,
         worm_lambda_zero_generator=state.derived_params.worm_lambda_zero_generator,
         worm_omega_generator=state.derived_params.worm_omega_generator,
-        numpy_bit_gen=state.numpy_bit_generator,
+        numpy_bit_gen=state.derived_params.numpy_bit_generator,
     )
 
     # inputs for delay in L1
@@ -222,7 +224,7 @@ def advance_state(state: State, debug: bool = False) -> None:
 
     people_to_die: Array.Person.Bool = np.logical_or(
         state.derived_params.people_to_die_generator.binomial(
-            np.repeat(1, state.n_people)
+            n=np.repeat(1, state.n_people), p=state._params.delta_time / state._params.humans.mean_human_age
         )
         == 1,
         state.people.ages >= state._params.humans.max_human_age,
@@ -230,7 +232,7 @@ def advance_state(state: State, debug: bool = False) -> None:
     state.people.process_deaths(
         people_to_die,
         state._params.humans.gender_ratio,
-        state.numpy_bit_generator,
+        state.derived_params.numpy_bit_generator,
         state._params.treatment,
         state._params.gamma_distribution,
     )

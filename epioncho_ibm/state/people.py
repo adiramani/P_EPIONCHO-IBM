@@ -92,25 +92,83 @@ class DelayArrays(HDF5Dataclass):
 
     @classmethod
     def from_params(cls, params: Params, individual_exposure: Array.Person.Float):
-        number_of_l3_delay_cols: int = round(
+        number_of_l3_delay_rows: int = cls._calulate_l3_delay_rows(params)
+        number_of_l1_delay_rows: int = cls._calulate_l1_delay_rows(params)
+
+        return cls(
+            _worm_delay=np.zeros((number_of_l3_delay_rows, params.n_people), dtype=int),
+            _exposure_delay=np.tile(
+                individual_exposure, (number_of_l1_delay_rows, 1)
+            ),
+            _mf_delay=(
+                np.ones((number_of_l1_delay_rows, params.n_people), dtype=int)
+                * params.microfil.initial_mf
+            ),
+        )
+    
+    @staticmethod
+    def _calulate_l3_delay_rows(params: Params) -> int:
+        return round(
             params.blackfly.l3_delay
             * params.month_length_days
             / (params.delta_time * params.year_length_days)
         )
-        number_of_l1_delay_columns: int = round(
+    
+    @staticmethod
+    def _calulate_l1_delay_rows(params: Params) -> int:
+        return round(
             params.blackfly.l1_delay / (params.delta_time * params.year_length_days)
         )
-
-        return cls(
-            _worm_delay=np.zeros((number_of_l3_delay_cols, params.n_people), dtype=int),
-            _exposure_delay=np.tile(
-                individual_exposure, (number_of_l1_delay_columns, 1)
-            ),
-            _mf_delay=(
-                np.ones((number_of_l1_delay_columns, params.n_people), dtype=int)
-                * params.microfil.initial_mf
-            ),
+    
+    @staticmethod
+    def upscale_delay_arrays(n_rows_new, old_delay_array, n_cols, current_index):
+        new_delay_array = (
+            np.zeros((n_rows_new, n_cols), dtype=int)
         )
+        n_rows_old = old_delay_array.shape[0]
+        total_new_rows = n_rows_new - n_rows_old
+        total_new_rows_per_existing_row = int(total_new_rows / n_rows_old) + 1
+        insert_indices = np.arange(0, n_rows_new, total_new_rows_per_existing_row)[:n_rows_old]
+        new_delay_array[insert_indices, :] = old_delay_array
+        new_index = current_index * total_new_rows_per_existing_row
+        return new_index, new_delay_array
+    
+    @staticmethod
+    def downscale_delay_arrays(n_rows_new, old_delay_array, n_cols, current_index):
+        n_rows_old = old_delay_array.shape[0]
+        downscale_ratio = int(np.ceil(n_rows_old / n_rows_new))
+        n_rows_old_expected = n_rows_new * downscale_ratio
+        old_delay_array_padded = np.vstack([
+            old_delay_array,
+            np.zeros((n_rows_old_expected - n_rows_old, n_cols), dtype=int)
+        ])
+        new_delay_array = old_delay_array_padded.reshape(-1, downscale_ratio, n_cols)
+        new_index = current_index // downscale_ratio
+        return new_index, new_delay_array.sum(axis=1)
+    
+    def apply_proper_scaling(self, n_rows_new, old_delay_array, n_cols, current_index):
+        diff = n_rows_new - old_delay_array.shape[0]
+        if diff != 0:
+            scale_func = self.upscale_delay_arrays if diff > 0 else self.downscale_delay_arrays
+            return scale_func(n_rows_new, old_delay_array, n_cols, current_index)
+        return current_index, old_delay_array
+
+    def rescale_delay_arrays(self, new_params: Params):
+        new_number_of_l3_delay_rows = self._calulate_l3_delay_rows(new_params)
+        new_number_of_l1_delay_rows = self._calulate_l1_delay_rows(new_params)
+
+        self._worm_delay_current, self._worm_delay = self.apply_proper_scaling(
+            new_number_of_l3_delay_rows, self._worm_delay, new_params.n_people, self._worm_delay_current
+        )
+
+        self._mf_delay_current, self._mf_delay = self.apply_proper_scaling(
+            new_number_of_l1_delay_rows, self._mf_delay, new_params.n_people, self._mf_delay_current
+        )
+
+        self._exposure_delay_current, self._exposure_delay = self.apply_proper_scaling(
+            new_number_of_l1_delay_rows, self._exposure_delay, new_params.n_people, self._exposure_delay_current
+        )
+        assert self._mf_delay.shape == self._exposure_delay.shape
 
     def process_deaths(
         self, people_to_die: Array.Person.Bool, individual_exposure: Array.Person.Float

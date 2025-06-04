@@ -1,6 +1,5 @@
 import numpy as np
-from fast_binomial import Generator
-from numpy.random import Generator as NumpyGenerator
+from numpy.random import Generator
 
 import epioncho_ibm.utils as utils
 from epioncho_ibm.state import Array, WormGroup, WormParams
@@ -15,7 +14,8 @@ def _calc_dead_worms(
     current_worms: WormGroup,
     female_mortalities_override: Array.WormCat.Person.Float | None,
     mortalities_generator: Generator,
-    numpy_bit_gen: NumpyGenerator,
+    mortality_rate: Array.WormCat.Float,
+    numpy_bit_gen: Generator,
 ) -> WormGroup:
     """
     Calculates the number of worms dying in each compartment
@@ -36,23 +36,26 @@ def _calc_dead_worms(
         current_worms: Array.WormCat.Person.Int,
         mortalities_override: None | Array.WormCat.Person.Float,
         mortalities_generator: Generator,
+        mortality_rate: Array.WormCat.Float
     ) -> Array.WormCat.Person.Int:
         assert current_worms.ndim == 2
         if mortalities_override is not None:
             return numpy_bit_gen.binomial(n=current_worms, p=mortalities_override)
         else:
-            return mortalities_generator.binomial(n=current_worms.T).T
+            return mortalities_generator.binomial(n=current_worms.T, p=mortality_rate).T
 
     return WormGroup(
         male=_calc_dead_worms_single_group(
             current_worms=current_worms.male,
             mortalities_override=None,
             mortalities_generator=mortalities_generator,
+            mortality_rate=mortality_rate,
         ),
         infertile=_calc_dead_worms_single_group(
             current_worms=current_worms.infertile,
             mortalities_override=female_mortalities_override,
             mortalities_generator=mortalities_generator,
+            mortality_rate=mortality_rate,
         ),
         perm_infertile=_calc_dead_worms_single_group(
             current_worms=current_worms.perm_infertile,
@@ -63,6 +66,7 @@ def _calc_dead_worms(
             current_worms=current_worms.fertile,
             mortalities_override=female_mortalities_override,
             mortalities_generator=mortalities_generator,
+            mortality_rate=mortality_rate,
         ),
     )
 
@@ -70,6 +74,7 @@ def _calc_dead_worms(
 def _calc_outbound_worms(
     current_worms: WormGroup,
     worm_age_rate_generator: Generator,
+    worm_age_rate_prob: float,
     dead_worms: WormGroup,
 ) -> WormGroup:
     """
@@ -89,19 +94,22 @@ def _calc_outbound_worms(
         current_worms: Array.WormCat.Person.Int,
         dead_worms: Array.WormCat.Person.Int,
         worm_age_rate_generator: Generator,
+        worm_age_rate_prob: float
     ) -> Array.WormCat.Person.Int:
-        return worm_age_rate_generator.binomial(n=current_worms - dead_worms)
+        return worm_age_rate_generator.binomial(n=current_worms - dead_worms, p=worm_age_rate_prob)
 
     return WormGroup(
         male=_calc_outbound_worms_single_group(
             dead_worms=dead_worms.male,
             current_worms=current_worms.male,
             worm_age_rate_generator=worm_age_rate_generator,
+            worm_age_rate_prob=worm_age_rate_prob,
         ),
         infertile=_calc_outbound_worms_single_group(
             dead_worms=dead_worms.infertile,
             current_worms=current_worms.infertile,
             worm_age_rate_generator=worm_age_rate_generator,
+            worm_age_rate_prob=worm_age_rate_prob,
         ),
         perm_infertile=_calc_outbound_worms_single_group(
             dead_worms=dead_worms.perm_infertile,
@@ -112,6 +120,7 @@ def _calc_outbound_worms(
             dead_worms=dead_worms.fertile,
             current_worms=current_worms.fertile,
             worm_age_rate_generator=worm_age_rate_generator,
+            worm_age_rate_prob=worm_age_rate_prob,
         ),
     )
 
@@ -128,6 +137,7 @@ def _calc_sterilizied_worms(
 def _calc_inbound_worms(
     worm_delay: Array.Person.Int,
     worm_sex_ratio_generator: Generator,
+    worm_sex_ratio_prob: float,
     outbound: WormGroup,
     current_females: Array.Person.Int,
     sterilization_effect: Array.WormCat.Person.Float,
@@ -146,7 +156,7 @@ def _calc_inbound_worms(
         WormGroup: The number of worms entering each compartment due to aging.
     """
     # Gets worms of each sex at random
-    delayed_males = worm_sex_ratio_generator.binomial(n=worm_delay)
+    delayed_males = worm_sex_ratio_generator.binomial(n=worm_delay, p=worm_sex_ratio_prob)
     delayed_females = worm_delay - delayed_males
     return WormGroup(
         male=utils.lag_array(delayed_males, outbound.male),
@@ -167,7 +177,7 @@ def _calc_delta_fertility(
     delta_time: float,
     worm_lambda_zero_generator: Generator,
     worm_omega_generator: Generator,
-    numpy_bit_gen: NumpyGenerator,
+    numpy_bit_gen: Generator,
 ) -> Array.WormCat.Person.Int:
     """
     Calculates how many worms go from infertile to fertile.
@@ -194,6 +204,7 @@ def _calc_delta_fertility(
         outbound_worms: Array.WormCat.Person.Int,
         prob: None | Array.Person.Float,
         worm_generator: Generator,
+        worm_generator_prob: float
     ) -> Array.WormCat.Person.Int:
 
         remaining_female_worms = current_worms - dead_worms - outbound_worms
@@ -201,7 +212,7 @@ def _calc_delta_fertility(
 
         if remaining_female_worms.any():
             if prob is None:
-                return worm_generator.binomial(n=remaining_female_worms)
+                return worm_generator.binomial(n=remaining_female_worms, p=worm_generator_prob)
             else:
                 return numpy_bit_gen.binomial(n=remaining_female_worms, p=prob)
         else:
@@ -221,6 +232,7 @@ def _calc_delta_fertility(
         outbound_worms=outbound_worms.fertile,
         prob=lambda_zero_in,
         worm_generator=worm_lambda_zero_generator,
+        worm_generator_prob=worm_params.lambda_zero * delta_time,
     )
 
     # approach assumes individuals which are moved from fertile to non
@@ -231,6 +243,7 @@ def _calc_delta_fertility(
         outbound_worms=outbound_worms.infertile,
         prob=None,
         worm_generator=worm_omega_generator,
+        worm_generator_prob=worm_params.omega * delta_time,
     )
     return new_fertile_from_inside - new_infertile_from_inside
 
@@ -352,12 +365,13 @@ def calculate_new_worms(
     mortalities: Array.WormCat.Float,
     current_time: float,
     debug: bool,
+    mortality_rate: Array.WormCat.Float,
     worm_age_rate_generator: Generator,
     worm_sex_ratio_generator: Generator,
     worm_lambda_zero_generator: Generator,
     worm_omega_generator: Generator,
     mortalities_generator: Generator,
-    numpy_bit_gen: NumpyGenerator,
+    numpy_bit_gen: Generator,
 ) -> tuple[WormGroup, LastTreatment]:
     """
     Calculates the new total worms in the model for one time step.
@@ -378,7 +392,7 @@ def calculate_new_worms(
         worm_lambda_zero_generator (Generator): Generates infertile worms at a pre-defined rate
         worm_omega_generator (Generator): Generates fertile worms at a pre-defined rate
         mortalities_generator (Generator): Generates dead worms at a pre-defined rate
-        numpy_bit_gen: (NumpyGenerator): The random number generator for numpy
+        numpy_bit_gen: (Generator): The random number generator for numpy
 
     Returns:
         tuple[WormGroup, Array.Person.Float]: Returns new total worms, last time people were treated, respectively
@@ -426,18 +440,21 @@ def calculate_new_worms(
         current_worms=current_worms,
         female_mortalities_override=female_mortalities,
         mortalities_generator=mortalities_generator,
+        mortality_rate=mortality_rate,
         numpy_bit_gen=numpy_bit_gen,
     )
 
     outbound = _calc_outbound_worms(
         current_worms=current_worms,
         worm_age_rate_generator=worm_age_rate_generator,
+        worm_age_rate_prob=delta_time / worm_params.worms_aging,
         dead_worms=dead,
     )
 
     inbound = _calc_inbound_worms(
         worm_delay=worm_delay_array,
         worm_sex_ratio_generator=worm_sex_ratio_generator,
+        worm_sex_ratio_prob=worm_params.sex_ratio,
         outbound=outbound,
         current_females=current_worms.fertile + current_worms.infertile,
         sterilization_effect=female_mortalities_sterilization,
