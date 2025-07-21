@@ -427,6 +427,18 @@ class State(HDF5Dataclass, BaseState[Params]):
         else:
             return float(np.mean(worm_burden))
 
+    def calculate_l3_per_blackfly(self) -> float:
+        return np.mean(self.people.blackfly.L3)
+    
+    def calculate_atp(self) -> float:
+        return self.calculate_l3_per_blackfly() * self._params.blackfly.bite_rate_per_person_per_year
+        
+    def calculate_prevalence_l3_blackflies(self) -> float:
+        l3_intensity = self.calculate_l3_per_blackfly()
+        k = l3_intensity * self._params.blackfly.k1 + self._params.blackfly.k0
+        prevalence = 1 - (1 + l3_intensity / k)^(-k)
+        return prevalence
+
     def _update_for_epilepsy(self):
         current_test_for_OAE = self.people.get_current_tested_for_OAE()
         if current_test_for_OAE.sum() > 0:

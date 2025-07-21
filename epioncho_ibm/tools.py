@@ -30,6 +30,7 @@ def add_state_to_run_data(
     with_pnc: bool = True,
     with_ov16=True,
     with_atp=True,
+    with_blackfly_outputs=True,
     with_female_worm_burden=True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
@@ -137,13 +138,16 @@ def add_state_to_run_data(
                     run_data[(*partial_key, sequela)] = prev
             if with_pnc:
                 run_data[(*partial_key, "pnc")] = state.percent_non_compliant()
-            if with_atp:
+            if with_atp or with_blackfly_outputs:
                 run_data[
                     (*partial_key, "ATP")
-                ] = np.mean(state.people.blackfly.L3) * state._params.blackfly.bite_rate_per_person_per_year
+                ] = state.calculate_atp()
                 run_data[
                     (*partial_key, "l3_per_blackfly")
-                ] = np.mean(state.people.blackfly.L3)
+                ] = state.calculate_l3_per_blackfly()
+                run_data[
+                    (*partial_key, "l3_prevalence_blackfly")
+                ] = state.calculate_prevalence_l3_blackflies()
             if with_female_worm_burden:
                 run_data[
                     (*partial_key, "proportion_of_fertile_females")

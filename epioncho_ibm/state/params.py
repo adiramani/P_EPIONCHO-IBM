@@ -84,6 +84,9 @@ class BlackflyParams(BaseModel):
     initial_L2: float = 0.03  # "int.L2"
     initial_L1: float = 0.03  # "int.L1"
 
+    k0: float = 0.0054
+    k1: float = 0.1459
+
     human_blood_index: float = 0.63  # 'h' in paper, used in 'm' and 'beta' in R code
     gonotrophic_cycle_length: float = (
         1 / 104
