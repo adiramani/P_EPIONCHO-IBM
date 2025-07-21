@@ -453,12 +453,15 @@ class People(HDF5Dataclass):
         never_compliant_pct: float = 0
     ):
         compliance_arr = np.random.choice([-1.0, 0.0], size=size, p=[never_compliant_pct, 1-never_compliant_pct])
-        possibly_compliant_mask = compliance_arr == 0
-        compliance_arr[possibly_compliant_mask] = random_generator.beta(
-            a=cov * (1 - corr) / corr,
-            b=(1 - cov) * (1 - corr) / corr,
-            size=np.sum(possibly_compliant_mask),
-        )
+        if corr > 0:
+            possibly_compliant_mask = compliance_arr == 0
+            compliance_arr[possibly_compliant_mask] = random_generator.beta(
+                a=cov * (1 - corr) / corr,
+                b=(1 - cov) * (1 - corr) / corr,
+                size=np.sum(possibly_compliant_mask),
+            )
+        else:
+            compliance_arr[compliance_arr == 0] = cov
         if never_compliant_pct > 0:
             print("Corr: " + str(corr) + " Cov: " + str(cov))
             print(compliance_arr)

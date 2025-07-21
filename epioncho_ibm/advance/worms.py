@@ -40,6 +40,7 @@ def _calc_dead_worms(
     ) -> Array.WormCat.Person.Int:
         assert current_worms.ndim == 2
         if mortalities_override is not None:
+            mortalities_override[mortalities_override > 1] = 1
             return numpy_bit_gen.binomial(n=current_worms, p=mortalities_override)
         else:
             return mortalities_generator.binomial(n=current_worms.T, p=mortality_rate).T
@@ -61,6 +62,7 @@ def _calc_dead_worms(
             current_worms=current_worms.perm_infertile,
             mortalities_override=female_mortalities_override,
             mortalities_generator=mortalities_generator,
+            mortality_rate=mortality_rate,
         ),
         fertile=_calc_dead_worms_single_group(
             current_worms=current_worms.fertile,
@@ -115,6 +117,7 @@ def _calc_outbound_worms(
             dead_worms=dead_worms.perm_infertile,
             current_worms=current_worms.perm_infertile,
             worm_age_rate_generator=worm_age_rate_generator,
+            worm_age_rate_prob=worm_age_rate_prob,
         ),
         fertile=_calc_outbound_worms_single_group(
             dead_worms=dead_worms.fertile,
