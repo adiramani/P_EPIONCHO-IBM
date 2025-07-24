@@ -32,6 +32,7 @@ def add_state_to_run_data(
     with_atp=True,
     with_blackfly_outputs=True,
     with_female_worm_burden=True,
+    with_stop_mda_information=False,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
     ov16_sens: tuple[float, float] = (100, 100),
@@ -295,6 +296,19 @@ def add_state_to_run_data(
 
     if not saving_multiple_states:
         state.reset_treatment_counter()
+
+    if with_stop_mda_information:
+        add_stop_mda_workflow_information(
+            state, run_data
+        )
+
+def add_stop_mda_workflow_information(
+    state: State,
+    run_data: Data
+):
+    for key, value in state.people.stop_mda_workflow_information.items():
+        partial_data_key = (round(state.current_time, 2), np.nan, np.nan)
+        run_data[(*partial_data_key, key)] = value
 
 
 def flatten_and_sort(

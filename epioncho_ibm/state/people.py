@@ -408,6 +408,8 @@ class People(HDF5Dataclass):
             "blackfly_stop_reached_time": -1,
             "sero_stop_survey_reached_time": -1,
             "can_start_who_verification": -1,
+            "retest_sero_count": 0,
+            "retest_blackfly_count": 0,
             "final_check_pre_who_verification": False
         }
         return cls(

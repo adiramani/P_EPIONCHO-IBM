@@ -47,6 +47,7 @@ def advance_state(state: State, debug: bool = False) -> None:
             state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] = np.floor(state.current_time)
         else:
             state.people.stop_mda_workflow_information["retest_blackfly_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
+            state.people.stop_mda_workflow_information["retest_blackfly_count"] += 1
     
     stop_mda_decision_reached = False
     if (
@@ -71,19 +72,20 @@ def advance_state(state: State, debug: bool = False) -> None:
                    state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
         if (state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] > 0):
             stop_mda_decision_reached = True
-            state.people.stop_mda_workflow_information["blackfly_pts_retest"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
-            state.people.stop_mda_workflow_information["sero_pts_retest"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
+            state.people.stop_mda_workflow_information["blackfly_pts_test"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
+            state.people.stop_mda_workflow_information["sero_pts_test"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
         else:
             state.people.stop_mda_workflow_information["retest_sero_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
+            state.people.stop_mda_workflow_information["retest_sero_count"] += 1
     
     if (
         (
-            "sero_pts_retest" in state.people.stop_mda_workflow_information and
-            "blackfly_pts_retest" in state.people.stop_mda_workflow_information
+            "sero_pts_test" in state.people.stop_mda_workflow_information and
+            "blackfly_pts_test" in state.people.stop_mda_workflow_information
         ) and
         (
-            state.people.stop_mda_workflow_information["blackfly_pts_retest"] < np.floor(state.current_time) and
-            state.people.stop_mda_workflow_information["sero_pts_retest"] < np.floor(state.current_time)
+            state.people.stop_mda_workflow_information["blackfly_pts_test"] < np.floor(state.current_time) and
+            state.people.stop_mda_workflow_information["sero_pts_test"] < np.floor(state.current_time)
         ) and 
         (
             state.people.stop_mda_workflow_information["final_check_pre_who_verification"] < 0
