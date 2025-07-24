@@ -315,7 +315,7 @@ class People(HDF5Dataclass):
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
     ov16_serostatus: Optional[Array.Person.Bool]
-    sero_threshold_reached: Optional[Array.Person.Bool]
+    stop_mda_workflow_information: Optional[dict]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -346,7 +346,7 @@ class People(HDF5Dataclass):
             and dict_fully_equal(self.countdown_sequela, other.countdown_sequela)
             and array_fully_equal(self.has_been_treated, other.has_been_treated)
             and array_fully_equal(self.ov16_serostatus, other.ov16_serostatus)
-            and self.sero_threshold_reached == other.sero_threshold_reached
+            and dict_fully_equal(self.stop_mda_workflow_information, other.stop_mda_workflow_information)
         )
 
     def __len__(self):
@@ -403,6 +403,13 @@ class People(HDF5Dataclass):
         countdown_sequela = {
             name: time_for_sequela.copy() for name in params.sequela_active
         }
+        stop_mda_workflow_information = {
+            "sero_pre_stop_reached_time": -1,
+            "blackfly_stop_reached_time": -1,
+            "sero_stop_survey_reached_time": -1,
+            "can_start_who_verification": -1,
+            "final_check_pre_who_verification": False
+        }
         return cls(
             compliance=compliance_array,
             ages=truncated_geometric(
@@ -441,7 +448,7 @@ class People(HDF5Dataclass):
             countdown_sequela=countdown_sequela,
             has_been_treated=has_been_treated,
             ov16_serostatus=ov16_serostatus,
-            sero_threshold_reached=False,
+            stop_mda_workflow_information=stop_mda_workflow_information,
         )
 
     @staticmethod
@@ -598,7 +605,7 @@ class People(HDF5Dataclass):
             },
             has_been_treated=self.has_been_treated[rel_ages],
             ov16_serostatus=self.ov16_serostatus[rel_ages],
-            sero_threshold_reached=self.sero_threshold_reached,
+            sero_pre_stop_reached_time=self.stop_mda_workflow_information,
         )
 
     def get_infected(self) -> Array.Person.Bool:

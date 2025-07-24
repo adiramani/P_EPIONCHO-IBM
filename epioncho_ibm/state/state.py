@@ -147,6 +147,7 @@ def get_OAE_mf_count_func(mf: list[int], prob: list[float], val_for_0: float):
 class State(HDF5Dataclass, BaseState[Params]):
     people: People
     _params: ImmutableParams
+    total_treatments_given: int = 0
     n_treatments: Optional[dict[float, Array.General.Int]]
     n_treatments_population: Optional[dict[float, Array.General.Float]]
     current_time: float = 0.0

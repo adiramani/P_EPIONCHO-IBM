@@ -10,7 +10,7 @@ from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
 
 
 # You can edit the inputs to this function to set more parameters dynamically
-def get_parameters(iter, abr=1641, kE=0.3):
+def get_parameters(iter, abr=1641, kE=0.3, stop_threshold=0.02, treatment_interval=1, coverage=0.65, rho=0.3):
     # all treatment (MDA) that you want to apply will be stored as a list of dictionaries
     # Each dictionary will describe the MDA being applied
     # If you want to apply vector control, it is considered a model change (explained below)
@@ -19,9 +19,11 @@ def get_parameters(iter, abr=1641, kE=0.3):
                 "first_year": 2000,
                 "last_year": 2050,
                 "interventions": {
-                    "treatment_interval": 1,
-                    "total_population_coverage": 0.65,
-                    "correlation": 0.3,
+                    "treatment_interval": treatment_interval,
+                    "total_population_coverage": coverage,
+                    "correlation": rho,
+                    "stop_threshold": stop_threshold,
+                    "ov16_sens_spec": (0.80, 0.99)
                 },
             }
     ]
@@ -35,7 +37,7 @@ def get_parameters(iter, abr=1641, kE=0.3):
     return {
         "parameters": {
             "initial": {
-                "n_people": 1000,
+                "n_people": 2000,
                 "year_length_days": 365,
                 "delta_h_zero": 0.186,
                 "c_v": 0.005,
@@ -76,9 +78,13 @@ def run_simulations(
     abr=1641,
     kE=0.3,
     start_time=1900,
-    end_time=2051
+    end_time=2051,
+    stop_threshold=0.02,
+    coverage=0.65,
+    rho=0.3,
+    treatment_interval=1,
 ):
-    endgame_structure = get_parameters(i, abr=abr, kE=kE)
+    endgame_structure = get_parameters(i, abr=abr, kE=kE, stop_threshold=stop_threshold, treatment_interval=treatment_interval, coverage=coverage, rho=rho)
 
     # Read in endgame objects and set up simulation
     endgame = EpionchoEndgameModel.parse_obj(endgame_structure)
@@ -152,7 +158,7 @@ def run_simulations(
             with_atp=False,
             with_female_worm_burden=True,
             ov16_sens=(80, 99),
-            custom_age_groups = [(0, 5), (5, 10), (0, 10), (10, 20), (20, 80)],
+            custom_age_groups = [(0, 5), (3, 10), (5, 10), (0, 10), (5, 15), (10, 20), (20, 80)],
             saving_multiple_states=False,
         )
         
@@ -188,7 +194,7 @@ if __name__ == "__main__":
     max_workers = 40
     index = int(os.environ['PBS_ARRAY_INDEX']) - 1
     # 0.2, 0.4, 0.6, 0.8 baseline mfp, 5-80
-    abr_vals = [225, 400, 1000, 7300]
+    abr_vals = [225, 225, 225, 225, 225, 225, 400, 400, 400, 400, 400, 400, 1000, 1000, 7300, 7300]
     abr_val = abr_vals[index]
     mfp_label = "20"
     if abr_val == 400:
@@ -198,6 +204,15 @@ if __name__ == "__main__":
     elif abr_val == 7300:
         mfp_label = "80"
 
+
+    thresholds = [0.02, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.01, 0.02, 0.01]
+    thresh = thresholds[index]
+
+    coverages = [0.65, 0.65, 0.65, 0.65, 0.80, 0.80, 0.65, 0.65, 0.65, 0.65, 0.80, 0.80, 0.65, 0.65, 0.65, 0.65]
+    cov = coverages[index]
+
+    rhos = [0.3, 0.3, 0.7, 0.7, 0.3, 0.3, 0.3, 0.3, 0.7, 0.7, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
+    rho = rhos[index]
     
     # How many times we want to run the model for a given set of parameters
     # Typically this value is 200
@@ -222,8 +237,11 @@ if __name__ == "__main__":
         # The start time of the model
         start_time=1925,
         # The end time of the model
-        end_time=2051,
-        
+        end_time=2100,
+        stop_threshold=thresh,
+        coverage=cov,
+        rho=rho,
+        treatment_interval=1,
     )
 
     # Now we use process_map to call the function we defined above
@@ -243,12 +261,12 @@ if __name__ == "__main__":
     # We are then going to save this data to a csv file
     write_data_to_csv(
         data,
-        f"test_outputs/python_model_output/who_schematics/{mfp_label}_pct_mfp_{abr_val}_abr.csv",
+        f"test_outputs/python_model_output/who_schematics 12/{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
     )
 
     write_data_to_csv(
         age_data,
-        f"test_outputs/python_model_output/who_schematics/age_grouped_{mfp_label}_pct_mfp_{abr_val}_abr.csv",
+        f"test_outputs/python_model_output/who_schematics 12/age_grouped_{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
     )
 
     # write_data_to_csv(

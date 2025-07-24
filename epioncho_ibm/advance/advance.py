@@ -11,19 +11,106 @@ from .worms import calculate_new_worms
 
 
 def advance_state(state: State, debug: bool = False) -> None:
-    # tmp fix
-    # todo: survey
-    if state.last_ov16_survey < np.floor(state.current_time):
-        if state._params.treatment is not None:
-            apparent_sero_prev = state.get_state_for_age_group(5, 10).sample_seroprevalence(state._params.treatment.ov16_sens_spec)
-            if state._params.treatment.stop_threshold is not None:
-                if state._params.treatment.stop_threshold + state._params.treatment.ov16_sens_spec[1] == 1.0:
-                    if (apparent_sero_prev <= state._params.treatment.stop_threshold):
-                        state.people.sero_threshold_reached = True
-                else:
-                    if (apparent_sero_prev < state._params.treatment.stop_threshold):
-                        state.people.sero_threshold_reached = True
+    # Pre-Stop Survey
+    # TODO: Modularize
+    if (
+        state.total_treatments_given >= state._params.min_years_treatment_pre_stop_survey and
+        state.last_ov16_survey < np.floor(state.current_time) and # TODO: make yearly surveys parameterized
+        state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] < 0
+    ):
         state.last_ov16_survey = np.floor(state.current_time)
+        pre_stop_ages = state._params.sero_pre_stop_survey_age_group
+        apparent_sero_prev = state.get_state_for_age_group(pre_stop_ages[0], pre_stop_ages[1]).sample_seroprevalence(state._params.serotest_sens_spec)
+        # If the specifcity + threshold == 1, then in theory it is almost impossible to go below the threshold
+        if state._params.sero_pre_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
+            if (apparent_sero_prev <= state._params.sero_pre_stop_survey_threshold):
+                state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] = state.last_ov16_survey
+            else:
+                if (apparent_sero_prev < state._params.sero_pre_stop_survey_threshold):
+                    state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] = state.last_ov16_survey
+        
+    if (
+        state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] > 0 and
+        (
+            state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] < 0 and
+            (
+                "retest_blackfly_stop" not in state.people.stop_mda_workflow_information or
+                state.people.stop_mda_workflow_information["retest_blackfly_stop"] < np.floor(state.current_time)
+            )
+        )
+    ):
+        l3_prevalence_blackfly = state.calculate_prevalence_l3_blackflies()
+        positive_flies = state.derived_params.numpy_bit_generator.binomial(
+            state._params.blackfly_stop_sample_size, l3_prevalence_blackfly
+        )
+        if positive_flies == 0: # TODO: In theory we would calcualte the upper confidence interval and see if it is less than 0.05%
+            state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] = np.floor(state.current_time)
+        else:
+            state.people.stop_mda_workflow_information["retest_blackfly_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
+    
+    stop_mda_decision_reached = False
+    if (
+        state.total_treatments_given >= state._params.min_years_treatment_stop_survey and
+        state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] > 0 and
+        (
+            state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] < 0 and
+            (
+                "retest_sero_stop" not in state.people.stop_mda_workflow_information or
+                state.people.stop_mda_workflow_information["retest_sero_stop"] < np.floor(state.current_time)
+            )
+        )
+    ):
+        stop_ages = state._params.sero_stop_survey_age_group
+        apparent_sero_prev = state.get_state_for_age_group(stop_ages[0], stop_ages[1]).sample_seroprevalence(state._params.serotest_sens_spec)
+        # If the specifcity + threshold == 1, then in theory it is almost impossible to go below the threshold
+        if state._params.sero_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
+            if (apparent_sero_prev <= state._params.sero_stop_survey_threshold):
+                state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
+            else:
+                if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
+                   state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
+        if (state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] > 0):
+            stop_mda_decision_reached = True
+            state.people.stop_mda_workflow_information["blackfly_pts_retest"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
+            state.people.stop_mda_workflow_information["sero_pts_retest"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
+        else:
+            state.people.stop_mda_workflow_information["retest_sero_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
+    
+    if (
+        (
+            "sero_pts_retest" in state.people.stop_mda_workflow_information and
+            "blackfly_pts_retest" in state.people.stop_mda_workflow_information
+        ) and
+        (
+            state.people.stop_mda_workflow_information["blackfly_pts_retest"] < np.floor(state.current_time) and
+            state.people.stop_mda_workflow_information["sero_pts_retest"] < np.floor(state.current_time)
+        ) and 
+        (
+            state.people.stop_mda_workflow_information["final_check_pre_who_verification"] < 0
+        )
+    ):
+        state.people.stop_mda_workflow_information["final_check_pre_who_verification"] = np.floor(state.current_time)
+        l3_prevalence_blackfly = state.calculate_prevalence_l3_blackflies()
+        positive_flies = state.derived_params.numpy_bit_generator.binomial(
+            state._params.blackfly_stop_sample_size, l3_prevalence_blackfly
+        )
+
+        stop_ages = state._params.sero_stop_survey_age_group
+        apparent_sero_prev = state.get_state_for_age_group(stop_ages[0], stop_ages[1]).sample_seroprevalence(state._params.serotest_sens_spec)
+        sero_mda_stop_threshold_reached = False
+        # If the specifcity + threshold == 1, then in theory it is almost impossible to go below the threshold
+        if state._params.sero_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
+            if (apparent_sero_prev <= state._params.sero_stop_survey_threshold):
+                sero_mda_stop_threshold_reached = True
+            else:
+                if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
+                   sero_mda_stop_threshold_reached = True
+        if (
+            sero_mda_stop_threshold_reached and 
+            positive_flies == 0 # TODO: In theory we would calcualte the upper confidence interval and see if it is less than 0.05%
+        ):
+            state.people.stop_mda_workflow_information["can_start_who_verification"] = np.floor(state.current_time)
+
     """Advance the state forward one time step from t to t + dt"""
     _, measured_mf = state.microfilariae_per_skin_snip()
     rounded_mf: Array.Person.Float = np.round(measured_mf)
@@ -35,10 +122,11 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.derived_params.treatment_index,
         state.people.ages,
         state.people.compliance,
-        state.people.sero_threshold_reached,
+        stop_mda_decision_reached,
         state.derived_params.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
+        state.total_treatments_given += 1
         state.derived_params.treatment_index += 1
         assert state.n_treatments is not None
         n_people_by_age, _ = np.histogram(

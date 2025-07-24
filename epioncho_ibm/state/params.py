@@ -33,8 +33,6 @@ class TreatmentParams(SpecificTreatmentParams):
     start_time: float  # The iteration upon which treatment commences
     stop_time: float  # the iteration upon which treatment stops
     treatment_name: str = "IVM"
-    stop_threshold: float = 0.01
-    ov16_sens_spec: tuple[float, float] = (0.80, 0.99)
 
 
 class WormParams(BaseModel):
@@ -144,6 +142,20 @@ class BaseParams(BaseModel):
     month_length_days: float = 28
     sequela_active: SequelaType = []
 
+    run_stop_mda_workflow: bool = False
+    additional_treatment_years: int = 5
+    min_years_treatment_pre_stop_survey: int = 10
+    min_years_treatment_stop_survey: int = 15
+    sero_pre_stop_survey_age_group: tuple[int, int] = (5, 10)
+    sero_pre_stop_survey_threshold: float = 0.02
+    blackfly_stop_threshold: float = 0.0005
+    blackfly_stop_sample_size: int = 6000
+    blackfly_post_stop_threshold: float = 0.001
+    sero_stop_survey_threshold: float = 0.01
+    sero_stop_survey_age_group: tuple[int, int] = (0, 10)
+    sero_post_stop_survey_delay: int = 5
+    serotest_sens_spec: tuple[float, float] = (0.80, 0.99)
+
 
 class BaseMutableParams(BaseParams):
     @property
@@ -168,11 +180,7 @@ class Params(BaseMutableParams, BaseInitialParams):
 class EndgameParams(BaseMutableParams, BaseInitialParams):
     pass
 
-class BaseProgramParamsNew(BaseProgramParams):
-    stop_threshold: float = 0.01
-    ov16_sens_spec: tuple[float, float] = (0.80, 0.99)
-
-class EndgameProgramParams(SpecificTreatmentParams, BaseProgramParamsNew):
+class EndgameProgramParams(SpecificTreatmentParams, BaseProgramParams):
     pass
 
 
