@@ -73,13 +73,16 @@ def add_state_to_run_data(
                         run_data[(*partial_key, sequela)] = prev
                 if with_pnc:
                     run_data[(*partial_key, "pnc")] = age_state.percent_non_compliant()
-                if with_atp:
+                if with_atp or with_blackfly_outputs:
                     run_data[
                         (*partial_key, "ATP")
-                    ] = np.mean(age_state.people.blackfly.L3) * age_state._params.blackfly.bite_rate_per_person_per_year
+                    ] = age_state.calculate_atp()
                     run_data[
                         (*partial_key, "l3_per_blackfly")
-                    ] = np.mean(age_state.people.blackfly.L3)
+                    ] = age_state.calculate_l3_per_blackfly()
+                    run_data[
+                        (*partial_key, "l3_prevalence_blackfly")
+                    ] = age_state.calculate_prevalence_l3_blackflies()
                 if with_female_worm_burden:
                     run_data[
                         (*partial_key, "proportion_of_fertile_females")
@@ -177,8 +180,8 @@ def add_state_to_run_data(
                 ov16_neg_mask = np.where(state.people.ov16_serostatus == False)[0]
                 diagnostic_rand = np.random.rand(state.n_people)
                 sampled_serostatus = np.zeros(state.n_people)
-                sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0]
-                sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1]
+                sampled_serostatus[ov16_pos_mask] = diagnostic_rand[ov16_pos_mask] <= ov16_sens[0] / 100
+                sampled_serostatus[ov16_neg_mask] = diagnostic_rand[ov16_neg_mask] > ov16_sens[1] / 100
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence")
                 ] = np.mean(sampled_serostatus)

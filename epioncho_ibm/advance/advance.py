@@ -12,7 +12,7 @@ from .worms import calculate_new_worms
 
 def advance_state(state: State, debug: bool = False) -> None:
     # tmp fix
-    # do survey
+    # todo: survey
     if state.last_ov16_survey < np.floor(state.current_time):
         if state._params.treatment is not None:
             apparent_sero_prev = state.get_state_for_age_group(5, 10).sample_seroprevalence(state._params.treatment.ov16_sens_spec)
@@ -36,7 +36,6 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.people.ages,
         state.people.compliance,
         state.people.sero_threshold_reached,
-        state.numpy_bit_generator,
         state.derived_params.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
