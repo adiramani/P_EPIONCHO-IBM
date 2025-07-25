@@ -147,12 +147,12 @@ def get_OAE_mf_count_func(mf: list[int], prob: list[float], val_for_0: float):
 class State(HDF5Dataclass, BaseState[Params]):
     people: People
     _params: ImmutableParams
-    total_treatments_given: int = 0
     n_treatments: Optional[dict[float, Array.General.Int]]
     n_treatments_population: Optional[dict[float, Array.General.Float]]
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
     last_ov16_survey: float = 0
+    total_treatments_given: int = 0
     derived_params: DerivedParams = field(init=False, repr=False)
     fit_func_OAE: Callable[
         [Array.Person.Int | Array.Person.Float], Array.Person.Float

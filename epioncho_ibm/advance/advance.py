@@ -14,6 +14,7 @@ def advance_state(state: State, debug: bool = False) -> None:
     # Pre-Stop Survey
     # TODO: Modularize
     if (
+        state._params.run_stop_mda_workflow and
         state.total_treatments_given >= state._params.min_years_treatment_pre_stop_survey and
         state.last_ov16_survey < np.floor(state.current_time) and # TODO: make yearly surveys parameterized
         state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] < 0
@@ -25,11 +26,12 @@ def advance_state(state: State, debug: bool = False) -> None:
         if state._params.sero_pre_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
             if (apparent_sero_prev <= state._params.sero_pre_stop_survey_threshold):
                 state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] = state.last_ov16_survey
-            else:
-                if (apparent_sero_prev < state._params.sero_pre_stop_survey_threshold):
-                    state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] = state.last_ov16_survey
-        
+        else:
+            if (apparent_sero_prev < state._params.sero_pre_stop_survey_threshold):
+                state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] = state.last_ov16_survey
+
     if (
+        state._params.run_stop_mda_workflow and
         state.people.stop_mda_workflow_information["sero_pre_stop_reached_time"] > 0 and
         (
             state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] < 0 and
@@ -47,10 +49,11 @@ def advance_state(state: State, debug: bool = False) -> None:
             state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] = np.floor(state.current_time)
         else:
             state.people.stop_mda_workflow_information["retest_blackfly_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
-            state.people.stop_mda_workflow_information["retest_blackfly_count"] += 1
+            state.people.stop_mda_workflow_information["retest_blackfly_stop_count"] += 1
     
     stop_mda_decision_reached = False
     if (
+        state._params.run_stop_mda_workflow and
         state.total_treatments_given >= state._params.min_years_treatment_stop_survey and
         state.people.stop_mda_workflow_information["blackfly_stop_reached_time"] > 0 and
         (
@@ -67,18 +70,20 @@ def advance_state(state: State, debug: bool = False) -> None:
         if state._params.sero_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
             if (apparent_sero_prev <= state._params.sero_stop_survey_threshold):
                 state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
-            else:
-                if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
-                   state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
+        else:
+            if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
+                state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] = np.floor(state.current_time)
         if (state.people.stop_mda_workflow_information["sero_stop_survey_reached_time"] > 0):
             stop_mda_decision_reached = True
+            state.people.stop_mda_workflow_information["stop_mda_decision_reached"] = stop_mda_decision_reached
             state.people.stop_mda_workflow_information["blackfly_pts_test"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
             state.people.stop_mda_workflow_information["sero_pts_test"] = np.floor(state.current_time) + state._params.sero_post_stop_survey_delay
         else:
             state.people.stop_mda_workflow_information["retest_sero_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
-            state.people.stop_mda_workflow_information["retest_sero_count"] += 1
+            state.people.stop_mda_workflow_information["retest_sero_stop_count"] += 1
     
     if (
+        state._params.run_stop_mda_workflow and
         (
             "sero_pts_test" in state.people.stop_mda_workflow_information and
             "blackfly_pts_test" in state.people.stop_mda_workflow_information
@@ -104,9 +109,9 @@ def advance_state(state: State, debug: bool = False) -> None:
         if state._params.sero_stop_survey_threshold + state._params.serotest_sens_spec[1] == 1.0:
             if (apparent_sero_prev <= state._params.sero_stop_survey_threshold):
                 sero_mda_stop_threshold_reached = True
-            else:
-                if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
-                   sero_mda_stop_threshold_reached = True
+        else:
+            if (apparent_sero_prev < state._params.sero_stop_survey_threshold):
+                sero_mda_stop_threshold_reached = True
         if (
             sero_mda_stop_threshold_reached and 
             positive_flies == 0 # TODO: In theory we would calcualte the upper confidence interval and see if it is less than 0.05%

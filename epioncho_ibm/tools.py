@@ -118,7 +118,7 @@ def add_state_to_run_data(
                     run_data[
                         (*partial_key, "sampled_ov16_seroprevalence")
                     ] = np.mean(sampled_serostatus) if age_state.n_people != 0 else 0
-                    run_data[(*partial_key, "has_treatment_stopped")] = age_state.people.sero_threshold_reached
+                    run_data[(*partial_key, "has_treatment_stopped")] = age_state.people.stop_mda_workflow_information["stop_mda_decision_reached"]
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -186,7 +186,7 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence")
                 ] = np.mean(sampled_serostatus)
-                run_data[(*partial_key, "has_treatment_stopped")] = state.people.sero_threshold_reached
+                run_data[(*partial_key, "has_treatment_stopped")] = state.people.stop_mda_workflow_information["stop_mda_decision_reached"]
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:

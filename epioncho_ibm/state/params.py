@@ -146,15 +146,15 @@ class BaseParams(BaseModel):
     additional_treatment_years: int = 5
     min_years_treatment_pre_stop_survey: int = 10
     min_years_treatment_stop_survey: int = 15
-    sero_pre_stop_survey_age_group: tuple[int, int] = (5, 10)
+    sero_pre_stop_survey_age_group: list[int] = [5, 10] # TODO: Change to tuple
     sero_pre_stop_survey_threshold: float = 0.02
     blackfly_stop_threshold: float = 0.0005
     blackfly_stop_sample_size: int = 6000
     blackfly_post_stop_threshold: float = 0.001
     sero_stop_survey_threshold: float = 0.01
-    sero_stop_survey_age_group: tuple[int, int] = (0, 10)
+    sero_stop_survey_age_group: list[int] = [0, 10] # TODO: Change to tuple
     sero_post_stop_survey_delay: int = 5
-    serotest_sens_spec: tuple[float, float] = (0.80, 0.99)
+    serotest_sens_spec: list[float] = [0.80, 0.99] # TODO: Change to tuple
 
 
 class BaseMutableParams(BaseParams):

@@ -315,7 +315,7 @@ class People(HDF5Dataclass):
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
     ov16_serostatus: Optional[Array.Person.Bool]
-    stop_mda_workflow_information: Optional[dict]
+    stop_mda_workflow_information: dict[str, int]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -408,9 +408,10 @@ class People(HDF5Dataclass):
             "blackfly_stop_reached_time": -1,
             "sero_stop_survey_reached_time": -1,
             "can_start_who_verification": -1,
-            "retest_sero_count": 0,
-            "retest_blackfly_count": 0,
-            "final_check_pre_who_verification": False
+            "stop_mda_decision_reached": False,
+            "retest_sero_stop_count": 0,
+            "retest_blackfly_stop_count": 0,
+            "final_check_pre_who_verification": -1
         }
         return cls(
             compliance=compliance_array,
@@ -607,7 +608,7 @@ class People(HDF5Dataclass):
             },
             has_been_treated=self.has_been_treated[rel_ages],
             ov16_serostatus=self.ov16_serostatus[rel_ages],
-            sero_pre_stop_reached_time=self.stop_mda_workflow_information,
+            stop_mda_workflow_information=self.stop_mda_workflow_information,
         )
 
     def get_infected(self) -> Array.Person.Bool:

@@ -3,6 +3,7 @@ from functools import partial
 
 import h5py
 from tqdm.contrib.concurrent import process_map
+import multiprocessing
 
 from epioncho_ibm.endgame_simulation import EndgameSimulation
 from epioncho_ibm.state.params import EpionchoEndgameModel
@@ -10,24 +11,22 @@ from epioncho_ibm.tools import Data, add_state_to_run_data, write_data_to_csv
 
 
 # You can edit the inputs to this function to set more parameters dynamically
-def get_parameters(iter, abr=1641, kE=0.3, stop_threshold=0.02, treatment_interval=1, coverage=0.65, rho=0.3):
+def get_parameters(iter, abr=1641, kE=0.3, stop_threshold=0.02, treatment_interval=1, coverage=0.65, rho=0.3, max_intervention_time=2050):
     # all treatment (MDA) that you want to apply will be stored as a list of dictionaries
     # Each dictionary will describe the MDA being applied
     # If you want to apply vector control, it is considered a model change (explained below)
     treatment_program = [
             {
                 "first_year": 2000,
-                "last_year": 2050,
+                "last_year": max_intervention_time,
                 "interventions": {
                     "treatment_interval": treatment_interval,
                     "total_population_coverage": coverage,
                     "correlation": rho,
-                    "stop_threshold": stop_threshold,
-                    "ov16_sens_spec": (0.80, 0.99)
                 },
             }
     ]
-    changes = []
+    changes = []#[{"year": 1990, "params": {"delta_time_days": 1}}]
 
     # setting the seed of the model is optional, but good practice
     seed = iter + iter * 3758
@@ -45,6 +44,8 @@ def get_parameters(iter, abr=1641, kE=0.3, stop_threshold=0.02, treatment_interv
                 "seed": seed,
                 "gamma_distribution": kE,
                 "delta_time_days": 1,
+                "run_stop_mda_workflow": True,
+                "serotest_sens_spec": [0.80, 0.99],
                 "blackfly": {
                     "bite_rate_per_person_per_year": abr,
                 },
@@ -97,10 +98,12 @@ def run_simulations(
     # Run the Simulation and store data
     run_data: Data = {}
     run_data_age: Data = {}
-    run_data_age_2: Data = {}
+    output_stop_mda_info = False
     for state in endgame_sim.iter_run(
         end_time=end_time, sampling_interval=sampling_interval
     ):
+        if (state.current_time + sampling_interval >= end_time):
+            output_stop_mda_info = True
         # This is a list of all the default outputs you can get in at each sample point
         # You can also add custom outputs, but accessing the `state` object and outputting
         # of its attributes. This would need to be stored in a separate variable and returned
@@ -136,8 +139,10 @@ def run_simulations(
             with_ov16=True,
             with_atp=True,
             with_female_worm_burden=True,
+            with_blackfly_outputs=True,
+            with_stop_mda_information=output_stop_mda_info,
             ov16_sens=(80, 99),
-            age_range=(0,80)
+            age_range=(5,80)
         )
 
         add_state_to_run_data(
@@ -157,42 +162,17 @@ def run_simulations(
             with_ov16=True,
             with_atp=False,
             with_female_worm_burden=True,
+            with_blackfly_outputs=True,
+            with_stop_mda_information=output_stop_mda_info,
             ov16_sens=(80, 99),
             custom_age_groups = [(0, 5), (3, 10), (5, 10), (0, 10), (5, 15), (10, 20), (20, 80)],
             saving_multiple_states=False,
         )
-        
-        # add_state_to_run_data(
-        #     state,
-        #     run_data=run_data_age_2,
-        #     # now we want to age group the data
-        #     with_age_groups=True,
-        #     number=True,
-        #     n_treatments=False,
-        #     achieved_coverage=False,
-        #     prevalence=True,
-        #     mean_worm_burden=True,
-        #     prevalence_OAE=False,
-        #     intensity=True,
-        #     with_sequela=False,
-        #     with_pnc=False,
-        #     with_ov16=True,
-        #     with_atp=False,
-        #     with_female_worm_burden=True,
-        #     ov16_sens=(80, 99),
-        #     custom_age_groups = [(0, 10), (10, 20), (20, 80)],
-        #     # we are not going to use `add_state_to_run_data` at this timestep anymore
-        #     saving_multiple_states=False,
-        # )
 
-    return (run_data, run_data_age)#, run_data_age_2)
+    return (run_data, run_data_age)
 
 
-# this is the function that python will start execution with when run
-if __name__ == "__main__":
-
-    max_workers = 40
-    index = int(os.environ['PBS_ARRAY_INDEX']) - 1
+def run_model(index, num_iters, max_workers):
     # 0.2, 0.4, 0.6, 0.8 baseline mfp, 5-80
     abr_vals = [225, 225, 225, 225, 225, 225, 400, 400, 400, 400, 400, 400, 1000, 1000, 7300, 7300]
     abr_val = abr_vals[index]
@@ -213,10 +193,6 @@ if __name__ == "__main__":
 
     rhos = [0.3, 0.3, 0.7, 0.7, 0.3, 0.3, 0.3, 0.3, 0.7, 0.7, 0.3, 0.3, 0.3, 0.3, 0.3, 0.3]
     rho = rhos[index]
-    
-    # How many times we want to run the model for a given set of parameters
-    # Typically this value is 200
-    num_iters = 500
         
 
     # To use parallel processing
@@ -229,7 +205,7 @@ if __name__ == "__main__":
         # Verbose Output
         verbose=False,
         # How often do we want to output? 1 = every year, 0.5 = every half year, etc.
-        sampling_interval=0.5,
+        sampling_interval=1,
         # The ABR we want to initialize the model with
         abr=abr_val,
         # The kE value we want to initialize the model with
@@ -237,7 +213,7 @@ if __name__ == "__main__":
         # The start time of the model
         start_time=1925,
         # The end time of the model
-        end_time=2100,
+        end_time=2051,
         stop_threshold=thresh,
         coverage=cov,
         rho=rho,
@@ -256,20 +232,27 @@ if __name__ == "__main__":
     # from the all age outputs
     data: list[Data] = [row[0] for row in datas]
     age_data: list[Data] = [row[1] for row in datas]
-    #age_data_2: list[Data] = [row[2] for row in datas]
 
     # We are then going to save this data to a csv file
     write_data_to_csv(
         data,
-        f"test_outputs/python_model_output/who_schematics 12/{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
+        f"test_outputs/python_model_output/who_schematics_for_gates/{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
     )
 
     write_data_to_csv(
         age_data,
-        f"test_outputs/python_model_output/who_schematics 12/age_grouped_{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
+        f"test_outputs/python_model_output/who_schematics_for_gates/age_grouped_{mfp_label}_pct_mfp_{abr_val}_abr_{cov}_coverage_{rho}_rho_{thresh}_serothreshold.csv",
     )
 
-    # write_data_to_csv(
-    #     age_data_2,
-    #     f"test_outputs/python_model_output/who_schematics/age_grouped_0-9_{mfp_label}_pct_mfp_{abr_val}_abr.csv",
-    # )
+# this is the function that python will start execution with when run
+if __name__ == "__main__":
+
+    # How many times we want to run the model for a given set of parameters
+    # Typically this value is 200
+    num_iters = 500
+    max_workers = multiprocessing.cpu_count() - 1
+    if num_iters < max_workers:
+        max_workers = num_iters
+    
+    index = int(os.environ['PBS_ARRAY_INDEX']) - 1
+    run_model(index=index, num_iters=num_iters, max_workers=max_workers)
