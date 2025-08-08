@@ -307,7 +307,7 @@ def add_stop_mda_workflow_information(
     run_data: Data
 ):
     for key, value in state.people.stop_mda_workflow_information.items():
-        partial_data_key = (round(state.current_time, 2), np.nan, np.nan)
+        partial_data_key = (round(state.current_time, 2), 0, 0)
         run_data[(*partial_data_key, key)] = value
 
 

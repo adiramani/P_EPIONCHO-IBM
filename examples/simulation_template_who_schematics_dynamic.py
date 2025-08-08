@@ -213,7 +213,7 @@ def run_model(index, num_iters, max_workers):
         # The start time of the model
         start_time=1925,
         # The end time of the model
-        end_time=2051,
+        end_time=2101,
         stop_threshold=thresh,
         coverage=cov,
         rho=rho,
