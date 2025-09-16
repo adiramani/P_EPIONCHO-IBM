@@ -19,8 +19,10 @@ def convert_prob(current_prob: float, scale_factor: float) -> float:
 
 
 def convert_prob(
-    current_prob: float | Array.Person.Float, scale_factor: float
+    current_prob: float | Array.Person.Float, scale_factor: float, use_daily_prob: bool
 ) -> float | Array.Person.Float:
+    if use_daily_prob:
+        return current_prob
     return 1 - ((1 - current_prob) ** scale_factor)
 
 
@@ -45,6 +47,7 @@ class Sequela:
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool
     ) -> float | Array.Person.Float:
         raise NotImplementedError("Must implement prob method for mf dependent sequela")
 
@@ -58,8 +61,11 @@ class Sequela:
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool,
     ) -> float | Array.Person.Float:
         scale_factor = delta_time / cls.probability_interval_years
+        if use_daily_prob:
+            scale_factor = -1
         return convert_prob(
             current_prob=cls._probability(
                 true_mf_count=true_mf_count,
@@ -68,8 +74,10 @@ class Sequela:
                 existing_sequela=existing_sequela,
                 has_this_sequela=has_this_sequela,
                 countdown=countdown,
+                use_daily_prob=use_daily_prob
             ),
             scale_factor=scale_factor,
+            use_daily_prob=use_daily_prob
         )
 
 
@@ -78,6 +86,7 @@ class _BaseReversible(Sequela):
     years_countdown: float = 3 / 365
     end_countdown_become_positive = False
     prob: float
+    daily_prob: float
 
     @classmethod
     def _probability(
@@ -88,16 +97,18 @@ class _BaseReversible(Sequela):
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool
     ) -> float | Array.Person.Float:
         new_probs = np.zeros_like(measured_mf_count)
         mask = np.logical_and(measured_mf_count > 0, ~has_this_sequela, ages >= 2)
-        new_probs[mask] = cls.prob
+        new_probs[mask] = cls.daily_prob if use_daily_prob else cls.prob
         return new_probs
 
 
 class _BaseNonReversible(Sequela):
     probability_interval_years: float = 1.0
     prob: float
+    daily_prob: float
 
     @classmethod
     def _probability(
@@ -108,10 +119,11 @@ class _BaseNonReversible(Sequela):
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool
     ) -> float | Array.Person.Float:
         new_probs = np.zeros_like(measured_mf_count)
         mask = np.logical_and(measured_mf_count > 0, np.logical_not(has_this_sequela))
-        new_probs[mask] = cls.prob
+        new_probs[mask] = cls.daily_prob if use_daily_prob else cls.prob
         return new_probs
 
 
@@ -132,6 +144,7 @@ class Blindness(Sequela):
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool,
     ) -> float | Array.Person.Float:
         not_during_countdown = np.logical_or(countdown <= 0, countdown == np.inf)
         for_sample = np.logical_and(
@@ -178,6 +191,7 @@ class CPOD(_BaseNonReversible):
         existing_sequela: dict[str, Array.Person.Bool],
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
+        use_daily_prob: Array.Person.Bool,
     ) -> float | Array.Person.Float:
         if "APOD" not in existing_sequela:
             raise ValueError("CPOD active, but APOD is not")
@@ -190,14 +204,17 @@ class CPOD(_BaseNonReversible):
 
 class Atrophy(_BaseNonReversible):
     prob = 0.002375305
+    daily_prob = 0.00000730
 
 
 class HangingGroin(_BaseNonReversible):
     prob = 0.0007263018
+    daily_prob = 0.00000218
 
 
 class Depigmentation(_BaseNonReversible):
     prob = 0.001598305
+    daily_prob = 0.00000486
 
 
 SequelaType = list[

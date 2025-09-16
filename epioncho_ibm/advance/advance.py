@@ -268,6 +268,7 @@ def advance_state(state: State, debug: bool = False) -> None:
         seq_class = state.derived_params.sequela_classes[name]
         assert name in state.people.countdown_sequela
         rel_seq_countdown = state.people.countdown_sequela[name]
+        use_pre_calc_prob = name in ["Atrophy", "HangingGroin", "Depigmentation"]
         prob = seq_class.timestep_probability(
             delta_time=state._params.delta_time,
             true_mf_count=new_total_mf,
@@ -276,6 +277,7 @@ def advance_state(state: State, debug: bool = False) -> None:
             existing_sequela=state.people.has_sequela,
             has_this_sequela=old_rel_sequela,
             countdown=rel_seq_countdown,
+            use_daily_prob=use_pre_calc_prob,
         )
 
         new_condition = np.random.random(state.n_people) < prob
