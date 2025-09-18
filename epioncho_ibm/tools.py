@@ -29,6 +29,7 @@ def add_state_to_run_data(
     with_sequela: bool = True,
     with_pnc: bool = True,
     with_ov16: bool = True,
+    with_blackfly_outputs: bool = True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
     ov16_sens_spec: tuple[float, float] = (0.80, 0.99),
@@ -38,7 +39,7 @@ def add_state_to_run_data(
     age_max = age_range[1]
     if custom_age_groups is None:
         custom_age_groups = [(i, i + 1) for i in range(age_max)]
-    if prevalence or number or mean_worm_burden or intensity or with_pnc or with_ov16:
+    if prevalence or number or mean_worm_burden or intensity or with_pnc or with_ov16 or with_blackfly_outputs:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
                 age_state = state.get_state_for_age_group(age_start, age_end)
@@ -82,6 +83,16 @@ def add_state_to_run_data(
                     run_data[
                         (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
                     ] = age_state.sample_seroprevalence(ov16_sens_spec, seroreversion=True) if age_state.n_people != 0 else 0
+                if with_blackfly_outputs:
+                    run_data[
+                        (*partial_key, "ATP")
+                    ] = state.calculate_atp()
+                    run_data[
+                        (*partial_key, "l3_per_blackfly")
+                    ] = state.calculate_l3_per_blackfly()
+                    run_data[
+                        (*partial_key, "l3_prevalence_blackfly")
+                    ] = state.calculate_prevalence_l3_blackflies()
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -119,6 +130,16 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
                 ] = state.sample_seroprevalence(ov16_sens_spec, seroreversion=True)
+            if with_blackfly_outputs:
+                run_data[
+                    (*partial_key, "ATP")
+                ] = state.calculate_atp()
+                run_data[
+                    (*partial_key, "l3_per_blackfly")
+                ] = state.calculate_l3_per_blackfly()
+                run_data[
+                    (*partial_key, "l3_prevalence_blackfly")
+                ] = state.calculate_prevalence_l3_blackflies()
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:

@@ -185,6 +185,9 @@ def run_simulations(
             with_sequela=True,
             # Output the percent of people who don't comply
             with_pnc=True,
+            # Output values related to the blackfly population, including ATP, l3 intensity, and l3 prevalence
+            # Note that these values will be the same for both age grouped and non-age-grouped outputs.
+            with_blackfly_outputs=True,
             # Output the Ov16 seroprevalence, both raw value and adjusted for diagnostic performance
             with_ov16=True,
             ov16_sens_spec=(0.80, 0.99),
@@ -208,6 +211,7 @@ def run_simulations(
             intensity=True,
             with_sequela=True,
             with_pnc=True,
+            with_blackfly_outputs=True,
             with_ov16=True,
             ov16_sens_spec=(80, 99),
             # we are not going to use `add_state_to_run_data` at this timestep anymore
