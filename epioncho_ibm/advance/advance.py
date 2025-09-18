@@ -12,6 +12,10 @@ from .worms import calculate_new_worms
 
 def advance_state(state: State, debug: bool = False) -> None:
     """Advance the state forward one time step from t to t + dt"""
+    # We want any sampling of Ov16 seroprevalence to be the same at a given timestep
+    # So we set the random number for the Bernoulli trial at the beginning of each timestep
+    state.people.set_ov16_diagnostic_rand()
+
     _, measured_mf = state.microfilariae_per_skin_snip()
     rounded_mf: Array.Person.Float = np.round(measured_mf)
     treatment = get_treatment(
@@ -198,6 +202,7 @@ def advance_state(state: State, debug: bool = False) -> None:
             new_has_sequela[name] = old_rel_sequela | new_condition
 
     state.people.has_sequela = new_has_sequela
+    state.people.determine_sero_status()
 
     people_to_die: Array.Person.Bool = np.logical_or(
         state.derived_params.people_to_die_generator.binomial(

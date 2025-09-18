@@ -1,5 +1,6 @@
 import csv
 import math
+import numpy as np
 from collections import defaultdict
 
 import pandas as pd
@@ -27,15 +28,17 @@ def add_state_to_run_data(
     with_age_groups: bool = True,
     with_sequela: bool = True,
     with_pnc: bool = True,
+    with_ov16: bool = True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
+    ov16_sens_spec: tuple[float, float] = (0.80, 0.99),
     age_range: tuple[int, int] = (0, 80),
 ) -> None:
     age_min = age_range[0]
     age_max = age_range[1]
     if custom_age_groups is None:
         custom_age_groups = [(i, i + 1) for i in range(age_max)]
-    if prevalence or number or mean_worm_burden or intensity or with_pnc:
+    if prevalence or number or mean_worm_burden or intensity or with_pnc or with_ov16:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
                 age_state = state.get_state_for_age_group(age_start, age_end)
@@ -65,6 +68,20 @@ def add_state_to_run_data(
                         run_data[(*partial_key, sequela)] = prev
                 if with_pnc:
                     run_data[(*partial_key, "pnc")] = age_state.percent_non_compliant()
+                if with_ov16:
+                    run_data[
+                        (*partial_key, "true_ov16_seroprevalence")
+                    ] = np.mean(age_state.people.ov16_serostatus) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "sampled_ov16_seroprevalence")
+                    ] = age_state.sample_seroprevalence(ov16_sens_spec) if age_state.n_people != 0 else 0
+
+                    run_data[
+                        (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
+                    ] = np.mean(age_state.people.ov16_serostatus_seroreversion) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
+                    ] = age_state.sample_seroprevalence(ov16_sens_spec, seroreversion=True) if age_state.n_people != 0 else 0
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -88,6 +105,20 @@ def add_state_to_run_data(
                     run_data[(*partial_key, sequela)] = prev
             if with_pnc:
                 run_data[(*partial_key, "pnc")] = state.percent_non_compliant()
+            if with_ov16:
+                run_data[
+                    (*partial_key, "true_ov16_seroprevalence")
+                ] = np.mean(state.people.ov16_serostatus)
+                run_data[
+                    (*partial_key, "sampled_ov16_seroprevalence")
+                ] = state.sample_seroprevalence(ov16_sens_spec)
+
+                run_data[
+                    (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
+                ] = np.mean(state.people.ov16_serostatus_seroreversion)
+                run_data[
+                    (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
+                ] = state.sample_seroprevalence(ov16_sens_spec, seroreversion=True)
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:

@@ -310,6 +310,9 @@ class People(HDF5Dataclass):
     has_sequela: dict[str, Array.Person.Bool]
     countdown_sequela: dict[str, Array.Person.Float]
     has_been_treated: Optional[Array.Person.Bool]
+    ov16_diagnostic_rand: Optional[Array.Person.Float]
+    ov16_serostatus: Optional[Array.Person.Bool]
+    ov16_serostatus_seroreversion: Optional[Array.Person.Bool]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -339,6 +342,9 @@ class People(HDF5Dataclass):
             and dict_fully_equal(self.has_sequela, other.has_sequela)
             and dict_fully_equal(self.countdown_sequela, other.countdown_sequela)
             and array_fully_equal(self.has_been_treated, other.has_been_treated)
+            and array_fully_equal(self.ov16_diagnostic_rand, other.ov16_diagnostic_rand)
+            and array_fully_equal(self.ov16_serostatus, other.ov16_serostatus)
+            and array_fully_equal(self.ov16_serostatus_seroreversion, other.ov16_serostatus_seroreversion)
         )
 
     def __len__(self):
@@ -376,6 +382,9 @@ class People(HDF5Dataclass):
             permanent_infertility=last_treatment.copy(),
         )
         has_been_treated = np.full(n_people, False)
+        ov16_diagnostic_rand = np.random.rand(n_people)
+        ov16_serostatus = np.full(n_people, False)
+        ov16_serostatus_seroreversion = np.full(n_people, False)
         # individual exposure to fly bites
         individual_exposure = people_generator.gamma(
             shape=params.gamma_distribution,
@@ -428,6 +437,9 @@ class People(HDF5Dataclass):
             has_sequela=has_sequela,
             countdown_sequela=countdown_sequela,
             has_been_treated=has_been_treated,
+            ov16_diagnostic_rand=ov16_diagnostic_rand,
+            ov16_serostatus=ov16_serostatus,
+            ov16_serostatus_seroreversion=ov16_serostatus_seroreversion,
         )
 
     @staticmethod
@@ -496,6 +508,8 @@ class People(HDF5Dataclass):
                 size=total_people_to_die,
             )
             self.has_been_treated[people_to_die] = False
+            self.ov16_serostatus[people_to_die] = False
+            self.ov16_serostatus_seroreversion[people_to_die] = False
             for arr in self.has_sequela.values():
                 arr[people_to_die] = False
             for arr in self.countdown_sequela.values():
@@ -558,6 +572,9 @@ class People(HDF5Dataclass):
                 name: a[rel_ages] for name, a in self.countdown_sequela.items()
             },
             has_been_treated=self.has_been_treated[rel_ages],
+            ov16_diagnostic_rand=self.ov16_diagnostic_rand[rel_ages],
+            ov16_serostatus=self.ov16_serostatus[rel_ages],
+            ov16_serostatus_seroreversion=self.ov16_serostatus_seroreversion[rel_ages],
         )
 
     def get_infected(self) -> Array.Person.Bool:
@@ -573,3 +590,26 @@ class People(HDF5Dataclass):
             & self.was_infected
             & np.logical_not(self.tested_for_OAE)
         )  # & np.logical_not(self.has_OAE)
+    
+    def determine_sero_status(self):
+        new_seropositives = np.logical_and(
+            (np.sum(self.mf, axis=0) > 0),
+            np.logical_and(
+                (np.sum(self.worms.fertile, axis=0) > 0),
+                (np.sum(self.worms.male, axis=0) > 0)
+            )
+        )
+        self.ov16_serostatus[new_seropositives] = True
+        self.ov16_serostatus_seroreversion[new_seropositives] = True
+
+        seroreverted = np.logical_and(
+            np.sum(self.delay_arrays._worm_delay, axis=0) <= 0,
+            np.logical_and(
+                (np.sum(self.worms.fertile, axis=0) <= 0),
+                (np.sum(self.worms.male, axis=0) <= 0)
+            )
+        )
+        self.ov16_serostatus_seroreversion[seroreverted] = False
+    
+    def set_ov16_diagnostic_rand(self):
+        self.ov16_diagnostic_rand = np.random.rand(len(self.ages))
