@@ -151,6 +151,7 @@ class State(HDF5Dataclass, BaseState[Params]):
     n_treatments_population: Optional[dict[float, Array.General.Float]]
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
+    stop_survey_workflow_information: dict[str, int]
     derived_params: DerivedParams = field(init=False, repr=False)
     fit_func_OAE: Callable[
         [Array.Person.Int | Array.Person.Float], Array.Person.Float
@@ -202,9 +203,28 @@ class State(HDF5Dataclass, BaseState[Params]):
 
     def _derive_params(self, oldGenerators) -> None:
         assert self._params
+        self.set_survey_information_dict()
         self.derived_params = DerivedParams(
             immutable_to_mutable(self._params), self.current_time, oldGenerators
         )
+
+    def set_survey_information_dict(self) -> None:
+        if (
+            self.stop_survey_workflow_information is None or
+            self.stop_survey_workflow_information == {}
+        ):
+            self.stop_survey_workflow_information = {
+                "sero_pre_stop_reached_time": -1,
+                "blackfly_stop_reached_time": -1,
+                "sero_stop_survey_reached_time": -1,
+                "can_start_who_verification": -1,
+                "total_treatments_given": 0,
+                "last_sero_prestop_survey": 0,
+                "stop_mda_decision_reached": 0,
+                "retest_sero_stop_count": 0,
+                "retest_blackfly_stop_count": 0,
+                "final_check_pre_who_verification": -1
+            }
 
     def _collect_generators(self) -> dict[str, Generator]:
         generators = {}

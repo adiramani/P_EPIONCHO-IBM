@@ -30,6 +30,7 @@ def add_state_to_run_data(
     with_pnc: bool = True,
     with_ov16: bool = True,
     with_blackfly_outputs: bool = True,
+    with_stop_mda_information: bool = True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
     ov16_sens_spec: tuple[float, float] = (0.80, 0.99),
@@ -95,6 +96,9 @@ def add_state_to_run_data(
                     run_data[
                         (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
                     ] = age_state.sample_seroprevalence(ov16_sens_spec, seroreversion=True) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "has_treatment_stopped")
+                    ] = age_state.stop_survey_workflow_information["stop_mda_decision_reached"]
                 if with_blackfly_outputs:
                     run_data[
                         (*partial_key, "ATP")
@@ -156,6 +160,9 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
                 ] = state.sample_seroprevalence(ov16_sens_spec, seroreversion=True)
+                run_data[
+                    (*partial_key, "has_treatment_stopped")
+                ] = state.stop_survey_workflow_information["stop_mda_decision_reached"]
             if with_blackfly_outputs:
                 run_data[
                     (*partial_key, "ATP")
@@ -276,6 +283,18 @@ def add_state_to_run_data(
     if not saving_multiple_states:
         state.reset_treatment_counter()
 
+    if with_stop_mda_information:
+        add_stop_survey_workflow_information(
+            state, run_data
+        )
+
+def add_stop_survey_workflow_information(
+    state: State,
+    run_data: Data
+):
+    for key, value in state.stop_survey_workflow_information.items():
+        partial_data_key = (round(state.current_time, 2), 0, 0)
+        run_data[(*partial_data_key, key)] = value
 
 def flatten_and_sort(
     data: list[Data],
@@ -289,12 +308,16 @@ def flatten_and_sort(
     Returns:
         A 2D list, of type list[tuple[Year, AgeStart, AgeEnd, Measurement, float | int, ...] where the value for each model run x is stored as a float in columns after "Measurement"
     """
+    num_runs = len(data)
     data_combined_runs: dict[
-        tuple[Year, AgeStart, AgeEnd, Measurement], list[float | int]
+        tuple[Year, AgeStart, AgeEnd, Measurement], list[float | int | None]
     ] = defaultdict(list)
-    for run in data:
+
+    for run_idx, run in enumerate(data):
         for k, v in run.items():
-            data_combined_runs[k].append(v)
+            if k not in data_combined_runs:
+                data_combined_runs[k] = [None] * num_runs
+            data_combined_runs[k][run_idx] = v
 
     rows = sorted(
         (k + tuple(v) for k, v in data_combined_runs.items()),
