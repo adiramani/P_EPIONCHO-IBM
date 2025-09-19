@@ -53,7 +53,19 @@ def add_state_to_run_data(
                 if mean_worm_burden:
                     run_data[
                         (*partial_key, "mean_worm_burden")
-                    ] = age_state.mean_worm_burden()
+                    ] = age_state.mean_worm_burden(worm_type="all")
+                    run_data[
+                        (*partial_key, "proportion_of_fertile_females")
+                    ] = age_state.calc_proportion_worms(numerator="fertile_female", denom="female")
+                    run_data[
+                        (*partial_key, "mean_fertile_female_worm_burden")
+                    ] = age_state.mean_worm_burden(worm_type="fertile_female")
+                    run_data[
+                        (*partial_key, "female_worm_prev")
+                    ] = age_state.worm_prevalence(worm_type="female")
+                    run_data[
+                        (*partial_key, "fertile_female_worm_prev")
+                    ] = age_state.worm_prevalence(worm_type="fertile_female")
                 if intensity:
                     (
                         run_data[(*partial_key, "intensity")],
@@ -102,7 +114,21 @@ def add_state_to_run_data(
             if number:
                 run_data[(*partial_key, "number")] = state.n_people
             if mean_worm_burden:
-                run_data[(*partial_key, "mean_worm_burden")] = state.mean_worm_burden()
+                run_data[
+                    (*partial_key, "mean_worm_burden")
+                ] = state.mean_worm_burden(worm_type="all")
+                run_data[
+                    (*partial_key, "proportion_of_fertile_females")
+                ] = state.calc_proportion_worms(numerator="fertile_female", denom="female")
+                run_data[
+                    (*partial_key, "mean_fertile_female_worm_burden")
+                ] = state.mean_worm_burden(worm_type="fertile_female")
+                run_data[
+                    (*partial_key, "female_worm_prev")
+                ] = state.worm_prevalence(worm_type="female")
+                run_data[
+                    (*partial_key, "fertile_female_worm_prev")
+                ] = state.worm_prevalence(worm_type="fertile_female")
             if intensity:
                 (
                     run_data[(*partial_key, "intensity")],
