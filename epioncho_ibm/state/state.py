@@ -149,9 +149,9 @@ class State(HDF5Dataclass, BaseState[Params]):
     _params: ImmutableParams
     n_treatments: Optional[dict[float, Array.General.Int]]
     n_treatments_population: Optional[dict[float, Array.General.Float]]
+    stop_survey_workflow_information: dict[str, int]
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
-    stop_survey_workflow_information: dict[str, int]
     derived_params: DerivedParams = field(init=False, repr=False)
     fit_func_OAE: Callable[
         [Array.Person.Int | Array.Person.Float], Array.Person.Float
@@ -214,7 +214,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             self.stop_survey_workflow_information == {}
         ):
             self.stop_survey_workflow_information = {
-                "sero_pre_stop_reached_time": -1,
+                "sero_prestop_reached_time": -1,
                 "blackfly_stop_reached_time": -1,
                 "sero_stop_survey_reached_time": -1,
                 "can_start_who_verification": -1,
@@ -269,6 +269,7 @@ class State(HDF5Dataclass, BaseState[Params]):
                 key: value[age_start:age_end]
                 for key, value in self.n_treatments_population.items()
             },
+            stop_survey_workflow_information=self.stop_survey_workflow_information
         )
 
     @classmethod
@@ -293,6 +294,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             _previous_delta_time=None,
             n_treatments={},
             n_treatments_population={},
+            stop_survey_workflow_information = {},
         )
 
     def __eq__(self, other: object) -> bool:
@@ -430,6 +432,14 @@ class State(HDF5Dataclass, BaseState[Params]):
                 return 0.0
 
     def worm_burden_per_person(self, worm_type="all") -> Array.Person.Int:
+        """
+        Calculated the worm burden of a given type(s) for each host in the population
+        
+        @param worm_type: can be one of "all", "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the denominator of the proportion. "all" will use all worm types.
+        Returns:
+            list of length # of hosts containing the number of specified worm type in each host.
+        """
         if worm_type == "male":
             return self.people.worms.male.sum(0)
         elif worm_type == "female":
@@ -460,6 +470,17 @@ class State(HDF5Dataclass, BaseState[Params]):
             return float(np.mean(worm_burden > 0))
 
     def calc_proportion_worms(self, numerator="female", denom="all") -> float:
+        """
+        Calculates the proportion of worm type A to type(s) B in the entire host population.
+
+        @param numerator: can be one of "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the numerator of the proportion.
+        @param denom: can be one of "all", "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the denominator of the proportion. "all" will use all worm types.
+
+        Returns:
+            float: Ratio of total worms of type numerator to type denominator
+        """
         numerator_burden = self.worm_burden_per_person(worm_type=numerator)
         if numerator_burden.size == 0:
             return 0.0
@@ -521,6 +542,16 @@ class State(HDF5Dataclass, BaseState[Params]):
         return sequelae_prevalence
     
     def sample_seroprevalence(self, sens_spec: tuple[float, float], seroreversion=False) -> float:
+        """
+        Calculates the the seroprevalence in the population using the given sensitivity and specificity values.
+        Seroreversion in the absence of infection is only assumed when set to True.
+
+        @param sens_spec: a tuple containing (Sens, Spec) of the diagnostic test, of the range [0, 1].
+        @param seroreversion: a boolean, which if set to true outputs seroprevalence using seroreversion.
+
+        Returns:
+            float: seroprevalence in population given supplied sens/spec (and seroreversion if specified)
+        """
         serostatus = self.people.ov16_serostatus
         if seroreversion:
             serostatus = self.people.ov16_serostatus_seroreversion

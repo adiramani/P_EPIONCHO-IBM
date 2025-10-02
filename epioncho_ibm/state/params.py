@@ -151,7 +151,7 @@ class BaseParams(BaseModel):
 
     blackfly_stop_threshold: float = 0.0005
     blackfly_stop_sample_size: int = 6000
-    blackfly_pts_threshold: float = 0.001
+    blackfly_pts_threshold: float = 0.0005
 
     sero_stop_survey_threshold: float = 0.01
     sero_stop_survey_age_group: list[int] = [0, 10] # TODO: Change to tuple
