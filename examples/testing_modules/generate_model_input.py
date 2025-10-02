@@ -143,7 +143,7 @@ def get_endgame(
                 "n_people": 400,
                 "year_length_days": 366,
                 "delta_h_zero": 0.186,
-                "c_v": 0.005,
+                "c_h": 0.005,
                 "delta_h_inf": 0.003,
                 "seed": seed,
                 "gamma_distribution": gamma_distribution,
