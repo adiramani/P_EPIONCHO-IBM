@@ -32,14 +32,14 @@ def get_parameters(iter, abr=1641, kE=0.3, coverages=[]):
             "initial": {
                 "n_people": 400,
                 "year_length_days": 365,
-                "delta_h_zero": 0.186,
-                "c_h": 0.005,
-                "delta_h_inf": 0.003,
                 "seed": seed,
                 "gamma_distribution": kE,
                 "delta_time_days": 1,
                 "blackfly": {
                     "bite_rate_per_person_per_year": abr,
+                    "delta_h_zero": 0.186,
+                    "c_h": 0.005,
+                    "delta_h_inf": 0.003,
                 },
                 "humans": {
                     "min_skinsnip_age": 0,

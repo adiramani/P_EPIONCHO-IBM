@@ -37,14 +37,14 @@ def get_parameters(iter, abr=1641, kE=0.3, start_age = 5, end_age = 80):
             "initial": {
                 "n_people": 400,
                 "year_length_days": 365,
-                "delta_h_zero": deltahzero,
-                "c_h": ch,
-                "delta_h_inf": deltahinf,
                 "seed": seed,
                 "gamma_distribution": kE,
                 "delta_time_days": 1,
                 "blackfly": {
                     "bite_rate_per_person_per_year": abr,
+                    "delta_h_zero": deltahzero,
+                    "c_h": ch,
+                    "delta_h_inf": deltahinf,
                 },
                 "humans": {
                     "min_skinsnip_age": 0,
@@ -138,6 +138,9 @@ if __name__ == "__main__":
     abr_values = [
         300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1500, 2000, 3000, 4000,
         5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 
+        20000,
+        300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1500, 2000, 3000, 4000,
+        5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 18000, 19000, 
         20000
     ]
 
@@ -150,14 +153,14 @@ if __name__ == "__main__":
     abr_value = abr_values[index]
     start_age_val = 5
     end_age_val = 80
-    if index >= 35:#len(abr_values)/2:
+    if index >= len(abr_values)/2:
         # start_age_val = 1
         # end_age_val = 80
         start_age_val = 5
         end_age_val = 66
     
     print("abr value")
-    print(abr_values)
+    print(abr_value)
     # How many times we want to run the model for a given set of parameters
     # Typically this value is 200
     num_iters = 200

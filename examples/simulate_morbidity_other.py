@@ -40,14 +40,14 @@ def get_parameters(iter, abr=1641, kE=0.3, coverages=[]):
             "initial": {
                 "n_people": 2000,
                 "year_length_days": 365,
-                "delta_h_zero": deltahzero,
-                "c_h": c_h,
-                "delta_h_inf": deltahinf,
                 "seed": seed,
                 "gamma_distribution": kE,
                 "delta_time_days": 1,
                 "blackfly": {
                     "bite_rate_per_person_per_year": abr,
+                    "delta_h_zero": deltahzero,
+                    "c_h": c_h,
+                    "delta_h_inf": deltahinf,
                 },
                 "humans": {
                     "min_skinsnip_age": 0,
@@ -312,7 +312,7 @@ if __name__ == "__main__":
         9: 530,# 600,
         10: 530,# 600,
         11: 40000,
-        12: 8250,
+        12: 40000,
     }
     abr_val = abr_vals[mda_index]
     # How many times we want to run the model for a given set of parameters
