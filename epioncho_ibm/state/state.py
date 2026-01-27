@@ -233,6 +233,7 @@ class State(HDF5Dataclass, BaseState[Params]):
                 new_params.treatment.correlation,
                 new_params.treatment.total_population_coverage,
                 self.derived_params.numpy_bit_generator,
+                new_params.treatment.never_compliant_pct
             )
 
     def get_state_for_age_group(self, age_start: float, age_end: float) -> "State":
