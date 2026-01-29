@@ -312,7 +312,7 @@ if __name__ == "__main__":
         9: 530,# 600,
         10: 530,# 600,
         11: 40000,
-        12: 40000,
+        12: 14000,
     }
     abr_val = abr_vals[mda_index]
     # How many times we want to run the model for a given set of parameters
