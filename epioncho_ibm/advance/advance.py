@@ -8,10 +8,18 @@ from .exposure import calculate_total_exposure
 from .microfil import calculate_microfil_delta
 from .treatment import get_treatment
 from .worms import calculate_new_worms
+from .survey import conduct_survey
 
 
 def advance_state(state: State, debug: bool = False) -> None:
     """Advance the state forward one time step from t to t + dt"""
+    # We want any sampling of Ov16 seroprevalence to be the same at a given timestep
+    # So we set the random number for the Bernoulli trial at the beginning of each timestep
+    state.people.set_ov16_diagnostic_rand()
+    
+    if state._params.run_stop_mda_workflow:
+        conduct_survey(state)
+
     _, measured_mf = state.microfilariae_per_skin_snip()
     rounded_mf: Array.Person.Float = np.round(measured_mf)
     treatment = get_treatment(
@@ -22,9 +30,11 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.derived_params.treatment_index,
         state.people.ages,
         state.people.compliance,
+        state.stop_survey_workflow_information["stop_mda_decision_reached"],
         state.derived_params.numpy_bit_generator,
     )
     if treatment is not None and treatment.treatment_occurred:
+        state.stop_survey_workflow_information["total_treatments_given"] += 1
         state.derived_params.treatment_index += 1
         assert state.n_treatments is not None
         n_people_by_age, _ = np.histogram(
@@ -198,6 +208,7 @@ def advance_state(state: State, debug: bool = False) -> None:
             new_has_sequela[name] = old_rel_sequela | new_condition
 
     state.people.has_sequela = new_has_sequela
+    state.people.determine_sero_status()
 
     people_to_die: Array.Person.Bool = np.logical_or(
         state.derived_params.people_to_die_generator.binomial(

@@ -35,6 +35,7 @@ class Sequela:
     probability_interval_years: ClassVar[float]
     years_countdown: ClassVar[Optional[float]] = None
     end_countdown_become_positive: Optional[bool] = None
+    average_age_for_prob_years: Optional[float] = None
 
     @classmethod
     def _probability(
@@ -59,7 +60,8 @@ class Sequela:
         has_this_sequela: Array.Person.Bool,
         countdown: Array.Person.Float,
     ) -> float | Array.Person.Float:
-        scale_factor = delta_time / cls.probability_interval_years
+        denom_factor = cls.average_age_for_prob_years or 1
+        scale_factor = delta_time / (denom_factor * cls.probability_interval_years)
         return convert_prob(
             current_prob=cls._probability(
                 true_mf_count=true_mf_count,
@@ -69,7 +71,7 @@ class Sequela:
                 has_this_sequela=has_this_sequela,
                 countdown=countdown,
             ),
-            scale_factor=scale_factor,
+            scale_factor=scale_factor
         )
 
 
@@ -189,15 +191,18 @@ class CPOD(_BaseNonReversible):
 
 
 class Atrophy(_BaseNonReversible):
-    prob = 0.002375305
+    prob = 0.036
+    average_age_for_prob_years = 22.876
 
 
 class HangingGroin(_BaseNonReversible):
-    prob = 0.0007263018
+    prob = 0.018
+    average_age_for_prob_years = 22.876
 
 
 class Depigmentation(_BaseNonReversible):
-    prob = 0.001598305
+    prob = 0.059
+    average_age_for_prob_years = 22.876
 
 
 SequelaType = list[

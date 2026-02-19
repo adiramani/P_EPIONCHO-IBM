@@ -60,6 +60,7 @@ def get_treatment(
     treatment_index: Optional[float],
     ages: Array.Person.Float,
     compliance: Optional[Array.Person.Float],
+    stop_mda_condition_met: Optional[int],
     numpy_bit_gen: Generator,
 ) -> Optional[TreatmentGroup]:
     """
@@ -78,6 +79,8 @@ def get_treatment(
         Optional[TreatmentGroup]: A treatment group containing information for later treatment
             calculation
     """
+    if stop_mda_condition_met == 1:
+        return None
     if treatment_params is not None:
         assert compliance is not None
         assert treatment_times is not None

@@ -149,6 +149,7 @@ class State(HDF5Dataclass, BaseState[Params]):
     _params: ImmutableParams
     n_treatments: Optional[dict[float, Array.General.Int]]
     n_treatments_population: Optional[dict[float, Array.General.Float]]
+    stop_survey_workflow_information: dict[str, int]
     current_time: float = 0.0
     _previous_delta_time: Optional[float] = None
     derived_params: DerivedParams = field(init=False, repr=False)
@@ -202,9 +203,28 @@ class State(HDF5Dataclass, BaseState[Params]):
 
     def _derive_params(self, oldGenerators) -> None:
         assert self._params
+        self.set_survey_information_dict()
         self.derived_params = DerivedParams(
             immutable_to_mutable(self._params), self.current_time, oldGenerators
         )
+
+    def set_survey_information_dict(self) -> None:
+        if (
+            self.stop_survey_workflow_information is None or
+            self.stop_survey_workflow_information == {}
+        ):
+            self.stop_survey_workflow_information = {
+                "sero_prestop_reached_time": -1,
+                "blackfly_stop_reached_time": -1,
+                "sero_stop_survey_reached_time": -1,
+                "can_start_who_verification": -1,
+                "total_treatments_given": 0,
+                "last_sero_prestop_survey": 0,
+                "stop_mda_decision_reached": 0,
+                "retest_sero_stop_count": 0,
+                "retest_blackfly_stop_count": 0,
+                "final_check_pre_who_verification": -1
+            }
 
     def _collect_generators(self) -> dict[str, Generator]:
         generators = {}
@@ -249,6 +269,7 @@ class State(HDF5Dataclass, BaseState[Params]):
                 key: value[age_start:age_end]
                 for key, value in self.n_treatments_population.items()
             },
+            stop_survey_workflow_information=self.stop_survey_workflow_information
         )
 
     @classmethod
@@ -273,6 +294,7 @@ class State(HDF5Dataclass, BaseState[Params]):
             _previous_delta_time=None,
             n_treatments={},
             n_treatments_population={},
+            stop_survey_workflow_information = {},
         )
 
     def __eq__(self, other: object) -> bool:
@@ -409,19 +431,77 @@ class State(HDF5Dataclass, BaseState[Params]):
             else:
                 return 0.0
 
-    def worm_burden_per_person(self) -> Array.Person.Int:
+    def worm_burden_per_person(self, worm_type="all") -> Array.Person.Int:
+        """
+        Calculated the worm burden of a given type(s) for each host in the population
+        
+        @param worm_type: can be one of "all", "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the denominator of the proportion. "all" will use all worm types.
+        Returns:
+            list of length # of hosts containing the number of specified worm type in each host.
+        """
+        if worm_type == "male":
+            return self.people.worms.male.sum(0)
+        elif worm_type == "female":
+            return (
+                self.people.worms.fertile.sum(0)
+                + self.people.worms.infertile.sum(0)
+            )
+        elif worm_type == "fertile_female":
+            return self.people.worms.fertile.sum(0)
         return (
             self.people.worms.male.sum(0)
             + self.people.worms.fertile.sum(0)
             + self.people.worms.infertile.sum(0)
         )
 
-    def mean_worm_burden(self) -> float:
-        worm_burden = self.worm_burden_per_person()
+    def mean_worm_burden(self, worm_type="all") -> float:
+        worm_burden = self.worm_burden_per_person(worm_type)
         if worm_burden.size == 0:
             return 0.0
         else:
             return float(np.mean(worm_burden))
+
+    def worm_prevalence(self, worm_type="all") -> float:
+        worm_burden = self.worm_burden_per_person(worm_type)
+        if worm_burden.size == 0:
+            return 0.0
+        else:
+            return float(np.mean(worm_burden > 0))
+
+    def calc_proportion_worms(self, numerator="female", denom="all") -> float:
+        """
+        Calculates the proportion of worm type A to type(s) B in the entire host population.
+
+        @param numerator: can be one of "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the numerator of the proportion.
+        @param denom: can be one of "all", "female", "male", or fertile_female". Denotes which type of worm
+            will be used in the denominator of the proportion. "all" will use all worm types.
+
+        Returns:
+            float: Ratio of total worms of type numerator to type denominator
+        """
+        numerator_burden = self.worm_burden_per_person(worm_type=numerator)
+        if numerator_burden.size == 0:
+            return 0.0
+        return float(
+            (numerator_burden.sum()) /
+            self.worm_burden_per_person(worm_type=denom).sum()
+        )
+
+    def calculate_l3_per_blackfly(self) -> float:
+        if len(self.people.blackfly.L3) == 0:
+            return 0.0
+        return np.mean(self.people.blackfly.L3)
+
+    def calculate_atp(self) -> float:
+        return self.calculate_l3_per_blackfly() * self._params.blackfly.bite_rate_per_person_per_year
+
+    def calculate_prevalence_l3_blackflies(self) -> float:
+        l3_intensity = self.calculate_l3_per_blackfly()
+        k = l3_intensity * self._params.blackfly.k1 + self._params.blackfly.k0
+        prevalence = 1 - (1 + l3_intensity / k)**(-k)
+        return prevalence
 
     def _update_for_epilepsy(self):
         current_test_for_OAE = self.people.get_current_tested_for_OAE()
@@ -460,6 +540,27 @@ class State(HDF5Dataclass, BaseState[Params]):
             else:
                 sequelae_prevalence[name] = prev
         return sequelae_prevalence
+    
+    def sample_seroprevalence(self, sens_spec: tuple[float, float], seroreversion=False) -> float:
+        """
+        Calculates the the seroprevalence in the population using the given sensitivity and specificity values.
+        Seroreversion in the absence of infection is only assumed when set to True.
+
+        @param sens_spec: a tuple containing (Sens, Spec) of the diagnostic test, of the range [0, 1].
+        @param seroreversion: a boolean, which if set to true outputs seroprevalence using seroreversion.
+
+        Returns:
+            float: seroprevalence in population given supplied sens/spec (and seroreversion if specified)
+        """
+        serostatus = self.people.ov16_serostatus
+        if seroreversion:
+            serostatus = self.people.ov16_serostatus_seroreversion
+        ov16_pos_mask = np.where(serostatus == True)[0]
+        ov16_neg_mask = np.where(serostatus == False)[0]
+        sampled_serostatus = np.zeros(self.n_people)
+        sampled_serostatus[ov16_pos_mask] = self.people.ov16_diagnostic_rand[ov16_pos_mask] <= sens_spec[0]
+        sampled_serostatus[ov16_neg_mask] = self.people.ov16_diagnostic_rand[ov16_neg_mask] > sens_spec[1]
+        return np.mean(sampled_serostatus)
 
     def percent_non_compliant(self) -> float:
         min_age = (

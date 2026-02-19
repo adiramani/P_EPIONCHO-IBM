@@ -1,5 +1,6 @@
 import csv
 import math
+import numpy as np
 from collections import defaultdict
 
 import pandas as pd
@@ -27,15 +28,19 @@ def add_state_to_run_data(
     with_age_groups: bool = True,
     with_sequela: bool = True,
     with_pnc: bool = True,
+    with_ov16: bool = True,
+    with_blackfly_outputs: bool = True,
+    with_stop_mda_information: bool = True,
     saving_multiple_states=False,
     custom_age_groups: list[tuple[int, int]] = None,
+    ov16_sens_spec: tuple[float, float] = (0.80, 0.99),
     age_range: tuple[int, int] = (0, 80),
 ) -> None:
     age_min = age_range[0]
     age_max = age_range[1]
     if custom_age_groups is None:
         custom_age_groups = [(i, i + 1) for i in range(age_max)]
-    if prevalence or number or mean_worm_burden or intensity or with_pnc:
+    if prevalence or number or mean_worm_burden or intensity or with_pnc or with_ov16 or with_blackfly_outputs:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
                 age_state = state.get_state_for_age_group(age_start, age_end)
@@ -49,7 +54,19 @@ def add_state_to_run_data(
                 if mean_worm_burden:
                     run_data[
                         (*partial_key, "mean_worm_burden")
-                    ] = age_state.mean_worm_burden()
+                    ] = age_state.mean_worm_burden(worm_type="all")
+                    run_data[
+                        (*partial_key, "proportion_of_fertile_females")
+                    ] = age_state.calc_proportion_worms(numerator="fertile_female", denom="female")
+                    run_data[
+                        (*partial_key, "mean_fertile_female_worm_burden")
+                    ] = age_state.mean_worm_burden(worm_type="fertile_female")
+                    run_data[
+                        (*partial_key, "female_worm_prev")
+                    ] = age_state.worm_prevalence(worm_type="female")
+                    run_data[
+                        (*partial_key, "fertile_female_worm_prev")
+                    ] = age_state.worm_prevalence(worm_type="fertile_female")
                 if intensity:
                     (
                         run_data[(*partial_key, "intensity")],
@@ -65,6 +82,33 @@ def add_state_to_run_data(
                         run_data[(*partial_key, sequela)] = prev
                 if with_pnc:
                     run_data[(*partial_key, "pnc")] = age_state.percent_non_compliant()
+                if with_ov16:
+                    run_data[
+                        (*partial_key, "true_ov16_seroprevalence")
+                    ] = np.mean(age_state.people.ov16_serostatus) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "sampled_ov16_seroprevalence")
+                    ] = age_state.sample_seroprevalence(ov16_sens_spec) if age_state.n_people != 0 else 0
+
+                    run_data[
+                        (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
+                    ] = np.mean(age_state.people.ov16_serostatus_seroreversion) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
+                    ] = age_state.sample_seroprevalence(ov16_sens_spec, seroreversion=True) if age_state.n_people != 0 else 0
+                    run_data[
+                        (*partial_key, "has_treatment_stopped")
+                    ] = age_state.stop_survey_workflow_information["stop_mda_decision_reached"]
+                if with_blackfly_outputs:
+                    run_data[
+                        (*partial_key, "ATP")
+                    ] = state.calculate_atp()
+                    run_data[
+                        (*partial_key, "l3_per_blackfly")
+                    ] = state.calculate_l3_per_blackfly()
+                    run_data[
+                        (*partial_key, "l3_prevalence_blackfly")
+                    ] = state.calculate_prevalence_l3_blackflies()
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -74,7 +118,21 @@ def add_state_to_run_data(
             if number:
                 run_data[(*partial_key, "number")] = state.n_people
             if mean_worm_burden:
-                run_data[(*partial_key, "mean_worm_burden")] = state.mean_worm_burden()
+                run_data[
+                    (*partial_key, "mean_worm_burden")
+                ] = state.mean_worm_burden(worm_type="all")
+                run_data[
+                    (*partial_key, "proportion_of_fertile_females")
+                ] = state.calc_proportion_worms(numerator="fertile_female", denom="female")
+                run_data[
+                    (*partial_key, "mean_fertile_female_worm_burden")
+                ] = state.mean_worm_burden(worm_type="fertile_female")
+                run_data[
+                    (*partial_key, "female_worm_prev")
+                ] = state.worm_prevalence(worm_type="female")
+                run_data[
+                    (*partial_key, "fertile_female_worm_prev")
+                ] = state.worm_prevalence(worm_type="fertile_female")
             if intensity:
                 (
                     run_data[(*partial_key, "intensity")],
@@ -88,6 +146,33 @@ def add_state_to_run_data(
                     run_data[(*partial_key, sequela)] = prev
             if with_pnc:
                 run_data[(*partial_key, "pnc")] = state.percent_non_compliant()
+            if with_ov16:
+                run_data[
+                    (*partial_key, "true_ov16_seroprevalence")
+                ] = np.mean(state.people.ov16_serostatus)
+                run_data[
+                    (*partial_key, "sampled_ov16_seroprevalence")
+                ] = state.sample_seroprevalence(ov16_sens_spec)
+
+                run_data[
+                    (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
+                ] = np.mean(state.people.ov16_serostatus_seroreversion)
+                run_data[
+                    (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
+                ] = state.sample_seroprevalence(ov16_sens_spec, seroreversion=True)
+                run_data[
+                    (*partial_key, "has_treatment_stopped")
+                ] = state.stop_survey_workflow_information["stop_mda_decision_reached"]
+            if with_blackfly_outputs:
+                run_data[
+                    (*partial_key, "ATP")
+                ] = state.calculate_atp()
+                run_data[
+                    (*partial_key, "l3_per_blackfly")
+                ] = state.calculate_l3_per_blackfly()
+                run_data[
+                    (*partial_key, "l3_prevalence_blackfly")
+                ] = state.calculate_prevalence_l3_blackflies()
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
@@ -198,6 +283,18 @@ def add_state_to_run_data(
     if not saving_multiple_states:
         state.reset_treatment_counter()
 
+    if with_stop_mda_information:
+        add_stop_survey_workflow_information(
+            state, run_data
+        )
+
+def add_stop_survey_workflow_information(
+    state: State,
+    run_data: Data
+):
+    for key, value in state.stop_survey_workflow_information.items():
+        partial_data_key = (round(state.current_time, 2), 0, 0)
+        run_data[(*partial_data_key, key)] = value
 
 def flatten_and_sort(
     data: list[Data],
@@ -211,12 +308,16 @@ def flatten_and_sort(
     Returns:
         A 2D list, of type list[tuple[Year, AgeStart, AgeEnd, Measurement, float | int, ...] where the value for each model run x is stored as a float in columns after "Measurement"
     """
+    num_runs = len(data)
     data_combined_runs: dict[
-        tuple[Year, AgeStart, AgeEnd, Measurement], list[float | int]
+        tuple[Year, AgeStart, AgeEnd, Measurement], list[float | int | None]
     ] = defaultdict(list)
-    for run in data:
+
+    for run_idx, run in enumerate(data):
         for k, v in run.items():
-            data_combined_runs[k].append(v)
+            if k not in data_combined_runs:
+                data_combined_runs[k] = [None] * num_runs
+            data_combined_runs[k][run_idx] = v
 
     rows = sorted(
         (k + tuple(v) for k, v in data_combined_runs.items()),

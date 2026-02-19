@@ -81,6 +81,9 @@ class BlackflyParams(BaseModel):
     initial_L2: float = 0.03  # "int.L2"
     initial_L1: float = 0.03  # "int.L1"
 
+    k0: float = 0.0054 # intercept for relationship between l3 intensity and k
+    k1: float = 0.1459 # slope for relationship between l3 intensity and k
+
     human_blood_index: float = 0.63  # 'h' in paper, used in 'm' and 'beta' in R code
     gonotrophic_cycle_length: float = (
         1 / 104
@@ -137,6 +140,25 @@ class BaseParams(BaseModel):
     year_length_days: float = 365
     month_length_days: float = 28
     sequela_active: SequelaType = []
+
+    run_stop_mda_workflow: bool = False
+    additional_treatment_years: int = 5
+    min_years_treatment_prestop_survey: int = 10
+    min_years_treatment_stop_survey: int = 15
+
+    sero_prestop_survey_age_group: list[int] = [5, 10] # TODO: Change to tuple
+    sero_prestop_survey_threshold: float = 0.02
+
+    blackfly_stop_threshold: float = 0.0005
+    blackfly_stop_sample_size: int = 6000
+    blackfly_pts_threshold: float = 0.0005
+
+    sero_stop_survey_threshold: float = 0.01
+    sero_stop_survey_age_group: list[int] = [0, 10] # TODO: Change to tuple
+
+    sero_pts_survey_delay: int = 5
+
+    survey_serotest_sens_spec: list[float] = [0.80, 0.99] # TODO: Change to tuple
 
 
 class BaseMutableParams(BaseParams):
