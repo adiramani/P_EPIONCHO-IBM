@@ -38,6 +38,8 @@ def add_state_to_run_data(
 ) -> None:
     age_min = age_range[0]
     age_max = age_range[1]
+    if not(with_age_groups):
+        state = state.get_state_for_age_group(age_min, age_max)
     if custom_age_groups is None:
         custom_age_groups = [(i, i + 1) for i in range(age_max)]
     if prevalence or number or mean_worm_burden or intensity or with_pnc or with_ov16 or with_blackfly_outputs:
