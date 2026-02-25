@@ -128,6 +128,7 @@ class HumanParams(BaseModel):
     skin_snip_weight: int = 2  # "ss.wt" the weight of the skin snip
     skin_snip_number: int = 2  # "num.ss"
     gender_ratio: float = 0.5
+    probability_serorevert_fast: float = 0.5
 
 
 class BaseParams(BaseModel):

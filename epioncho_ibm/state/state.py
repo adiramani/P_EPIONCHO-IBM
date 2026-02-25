@@ -553,8 +553,6 @@ class State(HDF5Dataclass, BaseState[Params]):
             float: seroprevalence in population given supplied sens/spec (and seroreversion if specified)
         """
         serostatus = self.people.ov16_serostatus
-        if seroreversion:
-            serostatus = self.people.ov16_serostatus_seroreversion
         ov16_pos_mask = np.where(serostatus == True)[0]
         ov16_neg_mask = np.where(serostatus == False)[0]
         sampled_serostatus = np.zeros(self.n_people)

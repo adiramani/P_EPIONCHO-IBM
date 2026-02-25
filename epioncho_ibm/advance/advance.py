@@ -223,4 +223,5 @@ def advance_state(state: State, debug: bool = False) -> None:
         state.derived_params.numpy_bit_generator,
         state._params.treatment,
         state._params.gamma_distribution,
+        state._params.humans.probability_serorevert_fast
     )

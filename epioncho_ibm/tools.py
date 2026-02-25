@@ -91,13 +91,6 @@ def add_state_to_run_data(
                     run_data[
                         (*partial_key, "sampled_ov16_seroprevalence")
                     ] = age_state.sample_seroprevalence(ov16_sens_spec) if age_state.n_people != 0 else 0
-
-                    run_data[
-                        (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
-                    ] = np.mean(age_state.people.ov16_serostatus_seroreversion) if age_state.n_people != 0 else 0
-                    run_data[
-                        (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
-                    ] = age_state.sample_seroprevalence(ov16_sens_spec, seroreversion=True) if age_state.n_people != 0 else 0
                     run_data[
                         (*partial_key, "has_treatment_stopped")
                     ] = age_state.stop_survey_workflow_information["stop_mda_decision_reached"]
@@ -155,13 +148,6 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "sampled_ov16_seroprevalence")
                 ] = state.sample_seroprevalence(ov16_sens_spec)
-
-                run_data[
-                    (*partial_key, "true_ov16_seroprevalence_with_seroreversion")
-                ] = np.mean(state.people.ov16_serostatus_seroreversion)
-                run_data[
-                    (*partial_key, "sampled_ov16_seroprevalence_with_seroreversion")
-                ] = state.sample_seroprevalence(ov16_sens_spec, seroreversion=True)
                 run_data[
                     (*partial_key, "has_treatment_stopped")
                 ] = state.stop_survey_workflow_information["stop_mda_decision_reached"]

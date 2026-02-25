@@ -312,7 +312,7 @@ class People(HDF5Dataclass):
     has_been_treated: Optional[Array.Person.Bool]
     ov16_diagnostic_rand: Optional[Array.Person.Float]
     ov16_serostatus: Optional[Array.Person.Bool]
-    ov16_serostatus_seroreversion: Optional[Array.Person.Bool]
+    ov16_serostatus_seroreversion_fast: Optional[Array.Person.Bool]
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, People):
@@ -344,7 +344,7 @@ class People(HDF5Dataclass):
             and array_fully_equal(self.has_been_treated, other.has_been_treated)
             and array_fully_equal(self.ov16_diagnostic_rand, other.ov16_diagnostic_rand)
             and array_fully_equal(self.ov16_serostatus, other.ov16_serostatus)
-            and array_fully_equal(self.ov16_serostatus_seroreversion, other.ov16_serostatus_seroreversion)
+            and array_fully_equal(self.ov16_serostatus_seroreversion_fast, other.ov16_serostatus_seroreversion_fast)
         )
 
     def __len__(self):
@@ -384,7 +384,15 @@ class People(HDF5Dataclass):
         has_been_treated = np.full(n_people, False)
         ov16_diagnostic_rand = np.random.rand(n_people)
         ov16_serostatus = np.full(n_people, False)
-        ov16_serostatus_seroreversion = np.full(n_people, False)
+        ov16_serostatus_seroreversion_fast = np.random.choice(
+            [True, False],
+            size=n_people,
+            replace=True,
+            p=[
+                params.humans.probability_serorevert_fast,
+                1-params.humans.probability_serorevert_fast
+            ]
+        )
         # individual exposure to fly bites
         individual_exposure = people_generator.gamma(
             shape=params.gamma_distribution,
@@ -439,7 +447,7 @@ class People(HDF5Dataclass):
             has_been_treated=has_been_treated,
             ov16_diagnostic_rand=ov16_diagnostic_rand,
             ov16_serostatus=ov16_serostatus,
-            ov16_serostatus_seroreversion=ov16_serostatus_seroreversion,
+            ov16_serostatus_seroreversion_fast=ov16_serostatus_seroreversion_fast,
         )
 
     @staticmethod
@@ -484,6 +492,7 @@ class People(HDF5Dataclass):
         numpy_bit_gen: Generator,
         treatment: Optional[TreatmentParams],
         gamma_distribution: float,
+        probability_serorevert_fast: float
     ):
         if (total_people_to_die := int(np.sum(people_to_die))) > 0:
             self.sex_is_male[people_to_die] = (
@@ -509,7 +518,15 @@ class People(HDF5Dataclass):
             )
             self.has_been_treated[people_to_die] = False
             self.ov16_serostatus[people_to_die] = False
-            self.ov16_serostatus_seroreversion[people_to_die] = False
+            self.ov16_serostatus_seroreversion_fast[people_to_die] = np.random.choice(
+                [True, False],
+                size=total_people_to_die,
+                replace=True,
+                p=[
+                    probability_serorevert_fast,
+                    1-probability_serorevert_fast
+                ]
+            )
             for arr in self.has_sequela.values():
                 arr[people_to_die] = False
             for arr in self.countdown_sequela.values():
@@ -574,7 +591,7 @@ class People(HDF5Dataclass):
             has_been_treated=self.has_been_treated[rel_ages],
             ov16_diagnostic_rand=self.ov16_diagnostic_rand[rel_ages],
             ov16_serostatus=self.ov16_serostatus[rel_ages],
-            ov16_serostatus_seroreversion=self.ov16_serostatus_seroreversion[rel_ages],
+            ov16_serostatus_seroreversion_fast=self.ov16_serostatus_seroreversion_fast[rel_ages],
         )
 
     def get_infected(self) -> Array.Person.Bool:
@@ -592,24 +609,36 @@ class People(HDF5Dataclass):
         )  # & np.logical_not(self.has_OAE)
     
     def determine_sero_status(self):
+        fertile_worms = np.sum(self.worms.fertile, axis=0)
+        infertile_worms = np.sum(self.worms.infertile, axis=0)
+        male_worms = np.sum(self.worms.male, axis=0)
         new_seropositives = np.logical_and(
             (np.sum(self.mf, axis=0) > 0),
             np.logical_and(
-                (np.sum(self.worms.fertile, axis=0) > 0),
-                (np.sum(self.worms.male, axis=0) > 0)
+                (fertile_worms > 0),
+                (male_worms > 0)
             )
         )
         self.ov16_serostatus[new_seropositives] = True
-        self.ov16_serostatus_seroreversion[new_seropositives] = True
 
-        seroreverted = np.logical_and(
-            np.sum(self.delay_arrays._worm_delay, axis=0) <= 0,
+        seroreverted = np.where(
+            self.ov16_serostatus_seroreversion_fast,
+            np.logical_or(
+                fertile_worms <= 0,
+                male_worms <= 0
+            ),
             np.logical_and(
-                (np.sum(self.worms.fertile, axis=0) <= 0),
-                (np.sum(self.worms.male, axis=0) <= 0)
+                np.sum(self.delay_arrays._worm_delay, axis=0) <= 0,
+                np.logical_and(
+                    np.logical_and(
+                        fertile_worms <= 0,
+                        infertile_worms <= 0
+                    ),
+                    male_worms <= 0
+                )
             )
         )
-        self.ov16_serostatus_seroreversion[seroreverted] = False
+        self.ov16_serostatus[seroreverted] = False
     
     def set_ov16_diagnostic_rand(self):
         self.ov16_diagnostic_rand = np.random.rand(len(self.ages))
