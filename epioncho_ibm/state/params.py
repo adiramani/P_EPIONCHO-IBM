@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 from endgame_simulations import BaseInitialParams, BaseProgramParams
@@ -84,6 +85,13 @@ class BlackflyParams(BaseModel):
     k0: float = 0.0054 # intercept for relationship between l3 intensity and k
     k1: float = 0.1459 # slope for relationship between l3 intensity and k
 
+
+    bite_rate_per_person_per_year: float = (
+        1000  # Annual biting rate 'ABR' in paper and in R code
+    )
+    x0: float = -0.46
+    x1: float = 0
+    derive_human_blood_index: bool = False
     human_blood_index: float = 0.63  # 'h' in paper, used in 'm' and 'beta' in R code
     gonotrophic_cycle_length: float = (
         1 / 104
@@ -91,11 +99,11 @@ class BlackflyParams(BaseModel):
     bite_rate_per_fly_on_human: float = human_blood_index / gonotrophic_cycle_length
     c_h: float = 0.004900419  # Severity of transmission intensity dependent parasite establishment within humans
 
-    bite_rate_per_person_per_year: float = (
-        1000  # Annual biting rate 'ABR' in paper and in R code
-    )
     l1_delay: float = 4  # (days)
     l3_delay: float = 10  # "l3.delay" (months) delay in worms entering humans and joining the first adult worm age class
+
+    def update(self, **kwargs):
+        return self.copy(update=kwargs)
 
 
 class MicrofilParams(BaseModel):

@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 import numpy as np
@@ -36,6 +37,8 @@ class DerivedParams:
     worm_mortality_generator: Generator
     numpy_bit_generator: Generator
     sequela_classes: dict[str, type[Sequela]]
+    derived_human_blood_index: float
+    derived_beta: float
 
     def __init__(
         self,
@@ -63,6 +66,15 @@ class DerivedParams:
                 - 1
             )
         )
+
+        if (params.blackfly.derive_human_blood_index):
+            self.derived_human_blood_index = math.exp(
+                params.blackfly.x0 + params.blackfly.x1 * params.blackfly.bite_rate_per_person_per_year
+            )
+            self.derived_beta = (
+                self.derived_human_blood_index / 
+                params.blackfly.gonotrophic_cycle_length
+            )
 
         microfillarie_age_categories = np.linspace(
             start=0,

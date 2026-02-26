@@ -1,3 +1,5 @@
+import math
+
 import numpy as np
 
 from epioncho_ibm.state import Array, State
@@ -16,6 +18,13 @@ def advance_state(state: State, debug: bool = False) -> None:
     # We want any sampling of Ov16 seroprevalence to be the same at a given timestep
     # So we set the random number for the Bernoulli trial at the beginning of each timestep
     state.people.set_ov16_diagnostic_rand()
+
+    blackfly_params_to_use = state._params.blackfly
+    if state._params.blackfly.derive_human_blood_index:
+        blackfly_params_to_use = state._params.blackfly.update(
+            human_blood_index=state.derived_params.derived_human_blood_index,
+            bite_rate_per_fly_on_human=state.derived_params.derived_beta
+        )
     
     if state._params.run_stop_mda_workflow:
         conduct_survey(state)
@@ -74,7 +83,7 @@ def advance_state(state: State, debug: bool = False) -> None:
     # entering the first adult worm age class
     new_worms = calc_new_worms_from_blackfly(
         state.people.blackfly.L3,
-        state._params.blackfly,
+        blackfly_params_to_use,
         state._params.delta_time,
         total_exposure,
         state.n_people,
@@ -139,7 +148,7 @@ def advance_state(state: State, debug: bool = False) -> None:
     state._update_for_epilepsy()
 
     state.people.blackfly.L1 = calc_l1(
-        state._params.blackfly,
+        blackfly_params_to_use,
         total_mf,
         mf_delay,
         total_exposure,
