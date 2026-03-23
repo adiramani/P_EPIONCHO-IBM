@@ -4,7 +4,31 @@ import numpy as np
 from scipy.stats import binomtest
 from typing import Generator
 
+
 def conduct_survey(state: State):
+    if (
+        state._params.year_of_stop_survey <= state.current_time and
+        (
+            "stop_mda_decision_reached" not in state.stop_survey_workflow_information or
+            state.stop_survey_workflow_information["stop_mda_decision_reached"] != 1
+        )
+    ):
+        if (
+            (
+                "retest_blackfly_stop" not in state.stop_survey_workflow_information or
+                state.stop_survey_workflow_information["retest_blackfly_stop"] <= np.floor(state.current_time)
+            )
+        ):
+            stop_mda_blackfly_survey(state, is_simple_survey=True)
+        if (
+            (
+                "retest_sero_stop" not in state.stop_survey_workflow_information or
+                state.stop_survey_workflow_information["retest_sero_stop"] <= np.floor(state.current_time)
+            )
+        ):
+            stop_mda_serological_survey(state, is_simple_survey=True)
+
+def conduct_survey_algorithm(state: State):
     if (
         state.stop_survey_workflow_information["total_treatments_given"] >= state._params.min_years_treatment_prestop_survey and
         state.stop_survey_workflow_information["last_sero_prestop_survey"] < np.floor(state.current_time) and # TODO: make yearly surveys parameterized
@@ -103,7 +127,7 @@ def do_blackfly_survey(state: State):
         state._params.blackfly_stop_sample_size
     )
 
-def stop_mda_blackfly_survey(state: State):
+def stop_mda_blackfly_survey(state: State, is_simple_survey=False):
         actual_prev, _, confidence_interval = do_blackfly_survey(state)
 
         # Store information for current survey
@@ -113,13 +137,14 @@ def stop_mda_blackfly_survey(state: State):
         state.stop_survey_workflow_information[f"blackfly_stop_retest_prev_upper_conf_{curr_retest_num}"] = confidence_interval[1]
         
         # TODO: implement an actual sens/spec for the blackfly test
-        if compare_to_threshold(confidence_interval[1], state._params.blackfly_stop_threshold, 1):
+        passed_survey = compare_to_threshold(confidence_interval[1], state._params.blackfly_stop_threshold, 1)
+        if passed_survey:
             state.stop_survey_workflow_information["blackfly_stop_reached_time"] = np.floor(state.current_time)
-        else:
+        elif (not passed_survey) or is_simple_survey:
             state.stop_survey_workflow_information["retest_blackfly_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
             state.stop_survey_workflow_information["retest_blackfly_stop_count"] += 1
     
-def stop_mda_serological_survey(state: State):
+def stop_mda_serological_survey(state: State, is_simple_survey=False):
         stop_ages = state._params.sero_stop_survey_age_group
         apparent_seroprev = (
             state
@@ -143,9 +168,17 @@ def stop_mda_serological_survey(state: State):
         state.stop_survey_workflow_information[f"sero_stop_retest_true_prev_{curr_retest_num}"] = true_seroprev
 
         if (state.stop_survey_workflow_information["sero_stop_survey_reached_time"] > 0):
-            state.stop_survey_workflow_information["stop_mda_decision_reached"] = 1
-            state.stop_survey_workflow_information["blackfly_pts_test"] = np.floor(state.current_time) + state._params.sero_pts_survey_delay
-            state.stop_survey_workflow_information["sero_pts_test"] = np.floor(state.current_time) + state._params.sero_pts_survey_delay
+            if (not is_simple_survey):
+                state.stop_survey_workflow_information["stop_mda_decision_reached"] = 1
+                state.stop_survey_workflow_information["blackfly_pts_test"] = np.floor(state.current_time) + state._params.sero_pts_survey_delay
+                state.stop_survey_workflow_information["sero_pts_test"] = np.floor(state.current_time) + state._params.sero_pts_survey_delay
+            elif state.stop_survey_workflow_information["blackfly_stop_reached_time"] > 0:
+                    state.stop_survey_workflow_information["stop_mda_decision_reached"] = 1
+                    state.stop_survey_workflow_information["retest_blackfly_stop"] -= state._params.additional_treatment_years
+                    state.stop_survey_workflow_information["retest_blackfly_stop_count"] -= 1
+            else:
+                state.stop_survey_workflow_information["retest_sero_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
+                state.stop_survey_workflow_information["retest_sero_stop_count"] += 1
         else:
             state.stop_survey_workflow_information["retest_sero_stop"] = np.floor(state.current_time) + state._params.additional_treatment_years
             state.stop_survey_workflow_information["retest_sero_stop_count"] += 1

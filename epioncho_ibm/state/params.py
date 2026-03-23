@@ -154,6 +154,7 @@ class BaseParams(BaseModel):
     additional_treatment_years: int = 5
     min_years_treatment_prestop_survey: int = 10
     min_years_treatment_stop_survey: int = 15
+    year_of_stop_survey: int = 2020
 
     sero_prestop_survey_age_group: list[int] = [5, 10] # TODO: Change to tuple
     sero_prestop_survey_threshold: float = 0.02

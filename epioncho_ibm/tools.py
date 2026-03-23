@@ -6,7 +6,7 @@ from collections import defaultdict
 import pandas as pd
 
 from epioncho_ibm import State
-
+from epioncho_ibm.advance.survey import do_blackfly_survey
 Year = float
 AgeStart = float
 AgeEnd = float
@@ -104,6 +104,10 @@ def add_state_to_run_data(
                     run_data[
                         (*partial_key, "l3_prevalence_blackfly")
                     ] = state.calculate_prevalence_l3_blackflies()
+                    _, _, confidence_interval = do_blackfly_survey(state)
+                    run_data[
+                        (*partial_key, "l3_prevalence_blackfly_survey_ub")
+                    ] = confidence_interval[1]
         else:
             partial_key = (round(state.current_time, 2), age_min, age_max)
             if prevalence:
@@ -161,6 +165,10 @@ def add_state_to_run_data(
                 run_data[
                     (*partial_key, "l3_prevalence_blackfly")
                 ] = state.calculate_prevalence_l3_blackflies()
+                _, _, confidence_interval = do_blackfly_survey(state)
+                run_data[
+                    (*partial_key, "l3_prevalence_blackfly_survey_ub")
+                ] = confidence_interval[1]
     if n_treatments or achieved_coverage:
         if with_age_groups:
             for age_start, age_end in custom_age_groups:
